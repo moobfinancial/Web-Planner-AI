@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Added standard NextAuth adapter models (Optional but good practice)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique // Made optional for flexibility if using OAuth only later
+  emailVerified DateTime? // Added for NextAuth adapter
+  password      String?   // Keep password for Credentials provider, make optional
+  role          Role      @default(USER)
+  image         String?
+  projects      Project[] @relation("ProjectOwner") // Renamed relation
+  sharedPlans   PlanShare[] @relation("PlanShareUser")
+  feedback      Feedback[]
+  activities    Activity[]
+  adminSettings AdminSettings?
+  accounts      Account[] // Added for NextAuth adapter
+  sessions      Session[] // Added for NextAuth adapter
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+// Renamed from Plan to Project
+model Project {
+  id                 String        @id @default(cuid())
+  projectName        String        // Renamed from title
+  projectDescription String?       @db.Text // Renamed from description, changed type, made optional Text
+  codeEditor         String?       // Added: Preferred code editor
+  targetAudience     String?       @db.Text // Added: Target audience description
+  keyGoals           String?       @db.Text // Added: Key goals for the project
+  status             ProjectStatus @default(IN_PROGRESS) // Added: Project status
+  userId             String        // Renamed from ownerId
+  user               User          @relation("ProjectOwner", fields: [userId], references: [id]) // Renamed relation and field
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  sharedWith         PlanShare[]   // Relation name kept, points to PlanShare
+  plans              Plan[]        // Renamed from versions, points to new Plan model
+  feedback           Feedback[]    // Relation kept
+  activities         Activity[]    // Relation kept
+}
+
+// Renamed from PlanVersion to Plan (represents a version)
+model Plan {
+  id             String    @id @default(cuid())
+  projectId      String?   // Renamed from planId - Made optional temporarily
+  planType       PlanType? // Added: 'initial' or 'refined' - Made optional temporarily
+  versionNumber  Int?      // Renamed from version - Made optional temporarily
+  planContent    String?   @db.Text // Renamed from content, changed type to Text - Made optional temporarily
+  researchData   Json?     // Added: Storing the JSON research findings
+  triggeringFeedbackText String?   @db.Text // Renamed from 'feedback': User feedback text that led to this version
+  prompts        Json?     // Kept: Generated implementation prompts
+  createdAt      DateTime  @default(now())
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade) // Renamed relation field, made optional temporarily
+  feedback       Feedback[] // Added back relation to Feedback model
+  @@unique([projectId, versionNumber]) // Ensure unique version numbers per project
+  @@index([projectId])
+}
+
+model PlanShare {
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade) // Renamed relation field
+  projectId   String   // Renamed field
+  user        User     @relation("PlanShareUser", fields: [userId], references: [id])
+  userId      String
+  role        ShareRole
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  permissions PlanPermission[]
+
+  @@unique([projectId, userId]) // Updated field name in constraint
+}
+
+model PlanPermission {
+  id          String   @id @default(cuid())
+  share       PlanShare @relation(fields: [shareId], references: [id])
+  shareId     String
+  permission  Permission
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shareId, permission])
+}
+
+model Feedback {
+  id                String   @id @default(cuid())
+  sectionIdentifier String?  // Added: Identifier for the plan section - Made optional temporarily
+  originalText      String?  @db.Text // Added: The text the feedback is about - Made optional temporarily
+  userComment       String?  @db.Text // Renamed from content, stores user's feedback/comment - Made optional temporarily
+  projectId         String?  // Kept link to Project for context - Made optional temporarily
+  project           Project? @relation(fields: [projectId], references: [id]) // Made relation optional temporarily
+  planId            String   // Feedback is now directly tied to a specific Plan (version)
+  plan              Plan     @relation(fields: [planId], references: [id], onDelete: Cascade) // Made relation required and cascade delete
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([planId])
+  @@index([userId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  type      String
+  projectId String? // Renamed field
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade) // Renamed relation field
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminSettings {
+  id        String   @id @default(cuid())
+  settings  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// Updated AIProvider model
+model AIProvider {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g., "OpenAI", "Google"
+  apiKey    String?  // Store securely, potentially encrypted or use secrets manager (Made optional)
+  baseUrl   String?  // Optional base URL for self-hosted or alternative endpoints (New field)
+  models    AIModel[] // Added relation to AIModel
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// New AIModel model
+model AIModel {
+  id           String     @id @default(cuid())
+  providerId   String
+  modelName    String     // e.g., "gpt-4-turbo", "gemini-pro"
+  description  String?
+  inputCost    Float?     // Cost per 1k input tokens (optional)
+  outputCost   Float?     // Cost per 1k output tokens (optional)
+  contextWindow Int?      // Max context window size (optional)
+  provider     AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  prompts      Prompt[]
+
+  @@unique([providerId, modelName])
+}
+
+// New Prompt model
+model Prompt {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "DeepResearch", "InitialPlan"
+  description String?
+  template    String   @db.Text // The actual prompt template
+  modelId     String?  // Optional: Default model for this prompt
+  model       AIModel? @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Added PlanType enum
+enum PlanType {
+  INITIAL
+  REFINED
+}
+
+// Added ProjectStatus enum
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ShareRole {
+  VIEWER
+  EDITOR
+  ADMIN
+}
+
+enum Permission {
+  VIEW
+  EDIT
+  COMMENT
+  SHARE
+  DELETE
+}
