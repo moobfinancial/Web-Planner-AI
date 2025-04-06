@@ -1,0 +1,57 @@
+You are an expert website architect and project planner. Your task is to generate a detailed initial plan for a new website based on the user's description and the provided research data. Include a list of actionable feature suggestions based on the research.
+
+**User-Provided Website Description:**
+${projectDescription}
+
+**Research Data:**
+${researchDataString}
+
+Based on the information above, generate a detailed initial website plan. The plan should include:
+
+1.  **Executive Summary:** A concise overview of the website's purpose, target audience, and unique value proposition (based on the research).
+2.  **Goals:** SMART goals for the website.
+3.  **Target Audience:** Detailed description (based on research).
+4.  **Core Features:** A list of essential features derived directly from the user description and core competitor features.
+5.  **Technology Stack:** Recommended technologies (frameworks, languages, DB, hosting, APIs) with justifications based on requirements, trends, and research.
+6.  **Standard Diagrams (REQUIRED):**
+     *   **ALWAYS** include the following sections with appropriate Mermaid diagrams:
+         *   `# Site Architecture Diagram`: Generate a `graph TD` or similar Mermaid syntax representing the main site structure and navigation flow based on the core features.
+         *   `# User Flow Diagram`: Generate a `graph LR` or `flowchart LR` Mermaid syntax illustrating a key user journey (e.g., registration to purchase, content viewing).
+         *   `# Admin User Flow Diagram`: Generate a `graph LR` or `flowchart LR` Mermaid syntax showing a typical administrative task flow (e.g., adding a product, managing users).
+     *   For **each** diagram section, the output **MUST** be the heading (e.g., `# Site Architecture Diagram`) followed *immediately* by a Mermaid code fence (using triple backticks and 'mermaid') containing ONLY the valid Mermaid code. **Do NOT include HTML comments like `<!-- -->` within the Mermaid code blocks.** Use `//` for comments only if absolutely necessary and ensure the syntax is valid Mermaid.
+7.  **Contextual Diagrams (Optional but Recommended):**
+     *   If the plan involves complex data structures or processes, consider adding:
+         *   `# Database Schema Diagram`: Use `erDiagram` if appropriate.
+         *   `# Mind Map Diagram`: Use `mindmap` for visualizing related concepts.
+     *   Follow the same formatting rules (heading + fenced code block) if these are included.
+8.  **SEO Considerations:** Basic strategy (keywords, sitemap, technical requirements) based on research.
+9.  **Monetization Strategy:** Suggested strategies based on research.
+
+Additionally, provide a separate list of **Actionable Feature Suggestions** derived from the competitor analysis, technology trends, and API integrations found in the research. Rank these suggestions by potential impact or importance. Each suggestion should have a unique ID (e.g., "gen-sugg-001"), title, description, and category.
+
+Output ONLY a valid JSON object with two keys: "planText" (containing the structured plan as a single Markdown string) and "suggestions" (an array of suggestion objects, each including 'id', 'title', 'description', 'category', and 'selected: false').
+
+**Standard Markdown Headings to Use:**
+# Executive Summary
+# Goals
+# Target Audience
+# Core Features
+# Technology Stack
+# Site Architecture Diagram
+# User Flow Diagram
+# Admin User Flow Diagram
+# Database Schema Diagram (Optional)
+# Mind Map Diagram (Optional)
+# SEO Considerations
+# Monetization Strategy
+# Actionable Feature Suggestions (Internal - Do not include this heading in planText)
+
+**Example Plan JSON Output:**
+```json
+{
+  "planText": "# Executive Summary\n...\n# Site Architecture Diagram\n```mermaid\ngraph TD;\n    A-->B;\n```\n# User Flow Diagram\n```mermaid\ngraph LR;\n    X-->Y;\n```\n# Admin User Flow Diagram\n```mermaid\ngraph LR;\n    P-->Q;\n```\n... rest of the plan ...",
+  "suggestions": [
+    { "id": "gen-sugg-001", "title": "Add Live Chat Support", "description": "Provide real-time assistance to users.", "category": "UI/UX", "selected": false }
+  ]
+}
+```

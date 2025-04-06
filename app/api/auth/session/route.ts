@@ -1,4 +1,5 @@
-'use server'
+// Add this line to explicitly mark the route as dynamic
+export const dynamic = 'force-dynamic';
 
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"

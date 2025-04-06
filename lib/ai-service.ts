@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { Plan } from '@prisma/client'; // Use correct Plan type, remove PlanVersion
 import { PlanContent, ResearchData, ImplementationPrompts } from '@/lib/types'; // Import all types
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
 
 // Log the API key presence before initializing
 console.log(`[ai-service] Attempting to initialize OpenAI. API Key Present: ${!!process.env.OPENAI_API_KEY}`);
@@ -24,6 +26,29 @@ const openai = new OpenAI({
  */
 export async function performDeepResearch(projectDescription: string): Promise<ResearchData | null> {
   console.log("Performing deep research for:", projectDescription.substring(0, 50) + "...");
+  
+  // Define example JSON objects as constants to avoid template literal parsing issues
+  const exampleResearchResponse = {
+    "targetAudience": {
+      "description": "...",
+      "onlineBehavior": "...",
+      "needs": "..."
+    },
+    "competitorAnalysis": [
+      {
+        "name": "...",
+        "features": ["..."],
+        "strengths": ["..."],
+        "weaknesses": ["..."],
+        "targetAudience": "..."
+      }
+      // More competitors would be here
+    ],
+    "technologyTrends": ["...", "..."],
+    "uniqueValueProposition": "...",
+    "monetizationStrategies": ["...", "..."]
+  };
+
   const prompt = `
 You are a highly skilled research assistant and information synthesis expert. Your task is to conduct thorough research based on the user's website idea description below and provide a structured summary of your findings.
 
@@ -38,34 +63,13 @@ Conduct research to gather the following information:
 4.  **Technology Trends:** Research current technology trends and best practices for building websites in this industry or niche. Which frameworks, CMS's, or libraries are trending?
 5.  **API and Service Integrations:** Identify any relevant APIs or third-party services that could be integrated into the website to enhance its functionality.
 6.  **Unique Value Proposition:** Synthesize a compelling unique value proposition. How can this site be both better and different than competitors?
-7.  **Monetization Strategies:** Research potential monetization avenues.
+7.  **Monetization Strategy:** Research potential monetization avenues.
 
 Provide your findings in a structured JSON format for easy parsing, including the specific competitors mentioned. Ensure all fields in the JSON are populated.
 
 **Example JSON Response:**
-\`\`\`json
-{
-    "targetAudience": {
-        "description": "...",
-        "onlineBehavior": "...",
-        "needs": "..."
-    },
-    "competitorAnalysis": [
-        {
-            "name": "...",
-            "strengths": "...",
-            "weaknesses": "...",
-            "keyFeatures": "...",
-            "seoTactics": "..."
-        }
-    ],
-    "keywords": ["...", "..."],
-    "technologyTrends": ["...", "..."],
-    "apiIntegrations": ["...", "..."],
-    "uniqueValueProposition": "...",
-    "monetizationStrategies":["...", "..."]
-}
-\`\`\`
+${JSON.stringify(exampleResearchResponse, null, 2)}
+
 `;
 
   try {
@@ -117,6 +121,229 @@ Provide your findings in a structured JSON format for easy parsing, including th
 }
 
 /**
+ * Generates a comprehensive "One-Shot Prompt" for building the entire application.
+ * @param projectDescription - The user's website description.
+ * @param researchData - The structured data from performDeepResearch.
+ * @param planText - The existing plan text.
+ * @returns The generated One-Shot Prompt as a string.
+ */
+export async function generateOneShotPrompt(
+  projectDescription: string,
+  researchData: ResearchData,
+  planText: string
+): Promise<string | null> {
+  console.log("Generating One-Shot Prompt...");
+
+  // Load instructions from file
+  const instructionsPath = path.join(process.cwd(), 'prompts', 'generateOneShotPromptInstructions.txt');
+  let instructions = '';
+  try {
+    instructions = fs.readFileSync(instructionsPath, 'utf-8');
+    // Replace placeholders in instructions
+    instructions = instructions.replace('${projectDescription}', projectDescription);
+    // Handle potential null researchData
+    const researchDataString = researchData ? JSON.stringify(researchData, null, 2) : 'No research data provided.';
+    instructions = instructions.replace('${researchDataString}', researchDataString);
+    instructions = instructions.replace('${planText}', planText);
+  } catch (error) {
+    console.error("Could not load AI instructions for One-Shot Prompt:", error);
+    return null;
+  }
+
+  const prompt = instructions; // Use loaded instructions as the prompt
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4000, // Adjust as needed
+    });
+
+    const responseContent = completion.choices[0]?.message?.content;
+    if (!responseContent) {
+      throw new Error("AI response content is empty for One-Shot Prompt.");
+    }
+
+    console.log("One-Shot Prompt generated successfully.");
+    return responseContent;
+  } catch (error: any) {
+    console.error('--- Error Generating One-Shot Prompt ---');
+    console.error("Full OpenAI Error:", error); // Log the entire error object
+    if (error.response) {
+      console.error("OpenAI API Status:", error.response.status);
+      console.error("OpenAI API Headers:", JSON.stringify(error.response.headers));
+      console.error("OpenAI API Data:", JSON.stringify(error.response.data));
+    }
+    return null;
+  }
+}
+
+
+// --- One-Shot Prompt Functions ---
+
+/**
+ * Generates a comprehensive "One-Shot Prompt" for building the entire application
+ * based on the refined plan, user choices, and profile.
+ *
+ * @param refinedPlan - The latest Plan object containing planContent, researchData, etc.
+ * @param codeEditor - The target code editor (e.g., "vscode", "cursor").
+ * @param databaseInfo - Information about the chosen database (e.g., type, schema details).
+ * @param userProfile - Information about the user's coding preferences or history (TBD).
+ * @param planContent - The main content of the plan.
+ * @param researchData - The research data associated with the plan.
+ * @param implementationPrompts - The generated implementation prompts.
+ * @param codeEditor - The target code editor (e.g., "vscode", "cursor").
+ * @param databaseInfo - Information about the chosen database (e.g., type, schema details).
+ * @param userProfile - Information about the user's coding preferences or history (TBD).
+ * @returns The generated One-Shot Prompt as a string, or null on failure.
+ */
+export async function generateOneShotPrompt_new( // Renamed to avoid conflict with existing function
+  planContent: string | null,
+  researchData: ResearchData | null,
+  implementationPrompts: ImplementationPrompts | null,
+  codeEditor: string,
+  databaseInfo: any, // Define a proper type later
+  userProfile: any // Define a proper type later
+): Promise<string | null> {
+  console.log(`Generating One-Shot Prompt for Editor: ${codeEditor}`);
+
+  // 1. Use the provided data directly
+  const currentPlanContent = planContent || '';
+
+  // 2. Construct the detailed prompt for the AI
+  //    - Combine initial plan, research, implementation prompts, db info, user profile.
+  //    - Add specific instructions for structure, detail level, error handling, etc.
+  //    - Tailor instructions based on the 'codeEditor' parameter.
+  const detailedPrompt = `
+    You are an expert AI programming assistant tasked with generating a single, comprehensive "One-Shot Prompt".
+    This prompt, when given to an AI code editor (${codeEditor}), should enable it to build the entire web application described below.
+
+    **Project Context:**
+    - **Plan Content:** ${currentPlanContent}
+    - **Research Data:** ${JSON.stringify(researchData, null, 2)}
+    - **Implementation Prompts:** ${JSON.stringify(implementationPrompts, null, 2)}
+    - **Database Info:** ${JSON.stringify(databaseInfo, null, 2)}
+    - **User Profile/Preferences:** ${JSON.stringify(userProfile, null, 2)}
+    - **Target Code Editor:** ${codeEditor}
+
+    **Instructions for the One-Shot Prompt:**
+    - Structure the prompt logically (Setup, DB, Backend, Frontend, APIs, Deployment, etc.).
+    - Provide extremely detailed, step-by-step instructions for each part.
+    - Include specific code snippets, examples, file names, and constraints where necessary.
+    - Define API endpoints clearly (routes, methods, request/response formats).
+    - Specify user flows and admin flows.
+    - Detail error handling strategies.
+    - Incorporate SEO considerations from the plan.
+    - Include instructions for testing.
+    - Adapt syntax and detail level for the target code editor: ${codeEditor}.
+    - Ensure the final output is a single, coherent text prompt.
+
+    Generate the One-Shot Prompt now.
+  `;
+
+  // 3. Call the AI model (e.g., OpenAI)
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-turbo', // Or another powerful model
+      messages: [{ role: 'user', content: detailedPrompt }],
+      max_tokens: 4096, // Use max tokens possible, One-Shot prompts can be large
+      temperature: 0.5, // Adjust temperature for creativity vs. precision
+    });
+
+    const oneShotPromptContent = completion.choices[0]?.message?.content;
+    if (!oneShotPromptContent) {
+      throw new Error("AI response content is empty for One-Shot Prompt generation.");
+    }
+
+    console.log("One-Shot Prompt generated successfully.");
+    return oneShotPromptContent;
+
+  } catch (error: unknown) {
+    console.error('--- Error Generating One-Shot Prompt ---');
+    // Log error details (similar to other functions)
+    if (error instanceof OpenAI.APIError) {
+      console.error('OpenAI API Error:', error.status, error.type, error.code, error.message);
+    } else if (error instanceof Error) {
+      console.error('Error:', error.name, error.message);
+    } else {
+      console.error('Unknown Error Type:', error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Refines an existing One-Shot Prompt based on user feedback.
+ *
+ * @param existingOneShotPrompt - The current One-Shot Prompt text.
+ * @param userFeedback - The feedback provided by the user.
+ * @param codeEditor - The target code editor (might influence refinement).
+ * @returns The refined One-Shot Prompt as a string, or null on failure.
+ */
+export async function refineOneShotPrompt(
+  existingOneShotPrompt: string,
+  userFeedback: string,
+  codeEditor: string
+): Promise<string | null> {
+  console.log(`Refining One-Shot Prompt for Editor: ${codeEditor}`);
+
+  // 1. Construct the prompt for the AI to refine the existing prompt
+  const refinementPrompt = `
+    You are an expert AI programming assistant. Your task is to refine the provided "One-Shot Prompt" based on the user's feedback.
+    The target code editor is ${codeEditor}.
+
+    **Existing One-Shot Prompt:**
+    \`\`\`
+    ${existingOneShotPrompt}
+    \`\`\`
+
+    **User Feedback:**
+    \`\`\`
+    ${userFeedback}
+    \`\`\`
+
+    **Instructions:**
+    - Analyze the user feedback carefully.
+    - Identify the specific areas in the existing prompt that need modification.
+    - Modify the prompt to address the feedback accurately and comprehensively.
+    - Maintain the structure and detail level appropriate for a One-Shot Prompt and the target editor (${codeEditor}).
+    - Ensure the output is the complete, refined One-Shot Prompt text.
+
+    Generate the refined One-Shot Prompt now.
+  `;
+
+  // 2. Call the AI model
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-turbo', // Or another powerful model
+      messages: [{ role: 'user', content: refinementPrompt }],
+      max_tokens: 4096, // Allow ample tokens for refinement
+      temperature: 0.5,
+    });
+
+    const refinedPromptContent = completion.choices[0]?.message?.content;
+    if (!refinedPromptContent) {
+      throw new Error("AI response content is empty for One-Shot Prompt refinement.");
+    }
+
+    console.log("One-Shot Prompt refined successfully.");
+    return refinedPromptContent;
+
+  } catch (error: unknown) {
+    console.error('--- Error Refining One-Shot Prompt ---');
+     // Log error details (similar to other functions)
+    if (error instanceof OpenAI.APIError) {
+      console.error('OpenAI API Error:', error.status, error.type, error.code, error.message);
+    } else if (error instanceof Error) {
+      console.error('Error:', error.name, error.message);
+    } else {
+      console.error('Unknown Error Type:', error);
+    }
+    return null;
+  }
+}
+
+/**
  * Generates the initial website plan based on the description and research data.
  * @param projectDescription - The user's website description.
  * @param researchData - The structured data from performDeepResearch.
@@ -127,46 +354,23 @@ export async function generateInitialPlan(
   researchData: ResearchData
 ): Promise<PlanContent | null> {
   console.log("Generating initial plan...");
-  const prompt = `
-You are an expert website architect and project planner. Your task is to generate a detailed initial plan for a new website based on the user's description and the provided research data. Include a list of actionable feature suggestions based on the research.
+  
+  // Load instructions from file
+  const instructionsPath = path.join(process.cwd(), 'prompts', 'generateInitialPlanInstructions.txt');
+  let instructions = '';
+  try {
+    instructions = fs.readFileSync(instructionsPath, 'utf-8');
+    // Replace placeholders in instructions
+    instructions = instructions.replace('${projectDescription}', projectDescription);
+    // Handle potential null researchData
+    const researchDataString = researchData ? JSON.stringify(researchData, null, 2) : 'No research data provided.';
+    instructions = instructions.replace('${researchDataString}', researchDataString);
+  } catch (error) {
+    console.error("Could not load AI instructions for initial plan:", error);
+    throw new Error("Could not load AI instructions for initial plan.");
+  }
 
-**User-Provided Website Description:**
-${projectDescription}
-
-**Research Data:**
-\`\`\`json
-${JSON.stringify(researchData, null, 2)}
-\`\`\`
-
-Based on the information above, generate a detailed initial website plan. The plan should include:
-
-1.  **Executive Summary:** A concise overview of the website's purpose, target audience, and unique value proposition (based on the research).
-2.  **Goals:** SMART goals for the website.
-3.  **Target Audience:** Detailed description (based on research).
-4.  **Core Features:** A list of essential features derived directly from the user description and core competitor features.
-5.  **Technology Stack:** Recommended technologies (frameworks, languages, DB, hosting, APIs) with justifications based on requirements, trends, and research.
-6.  **Site Architecture Diagram:** **IMPORTANT:** Generate a visual representation of the site structure using **Mermaid syntax** (specifically, a top-down graph: graph TD). Show the main pages/sections and their relationships. The output for this section **MUST START WITH graph TD and contain ONLY the Mermaid code block itself**, no surrounding text or Markdown headers.
-7.  **User Flow Diagram:** **IMPORTANT:** If applicable based on the project description, generate a simple user flow diagram using **Mermaid syntax** (specifically, a flowchart: graph LR or flowchart LR). Show key steps a user might take. The output for this section **MUST START WITH graph LR or flowchart LR and contain ONLY the Mermaid code block itself**. If not applicable, omit this section or leave its content empty.
-8.  **Database Schema Diagram:** **IMPORTANT:** If applicable based on the project description and features, generate a high-level database schema diagram using **Mermaid syntax** (specifically, an entity relationship diagram: erDiagram). Show main entities and their relationships. The output for this section **MUST START WITH erDiagram and contain ONLY the Mermaid code block itself**. If not applicable, omit this section or leave its content empty.
-9.  **Mind Map Diagram:** **IMPORTANT:** If applicable based on the project description, generate a mind map summarizing key concepts or features using **Mermaid syntax** (specifically, mindmap). The output for this section **MUST START WITH mindmap and contain ONLY the Mermaid code block itself**. If not applicable, omit this section or leave its content empty.
-10. **SEO Considerations:** Basic strategy (keywords, sitemap, technical requirements) based on research. // Renumbered
-11. **Monetization Strategy:** Suggested strategies based on research. // Renumbered
-
-Additionally, provide a separate list of **Actionable Feature Suggestions** derived from the competitor analysis, technology trends, and API integrations found in the research. Rank these suggestions by potential impact or importance. Each suggestion should have a unique ID (e.g., "sugg-001"), text, justification, and rank.
-
-Output ONLY a valid JSON object with two keys: "planText" (containing the structured plan as a single Markdown string) and "suggestions" (an array of suggestion objects, each including 'id', 'text', 'justification', 'rank', and 'selected: false').
-
-**Example JSON Output:**
-\`\`\`json
-{
-  "planText": "# Executive Summary\\n...\\n\\n# Goals\\n...",
-  "suggestions": [
-    { "id": "sugg-001", "text": "Implement user profiles", "justification": "Common feature among competitors X and Y.", "rank": 1, "selected": false },
-    { "id": "sugg-002", "text": "Integrate with Stripe API for payments", "justification": "Supports suggested monetization strategy.", "rank": 2, "selected": false }
-  ]
-}
-\`\`\`
-`;
+  const prompt = instructions; // Use loaded instructions as the prompt
 
   try {
     const completion = await openai.chat.completions.create({
@@ -194,6 +398,7 @@ Output ONLY a valid JSON object with two keys: "planText" (containing the struct
 
     console.log("Initial plan generated successfully.");
     // Add validation for planData structure if needed
+    planData.planText = cleanMermaidCode(planData.planText); // Clean Mermaid code
     return planData;
   } catch (error: unknown) {
     console.error('--- Error Generating Initial Plan ---');
@@ -234,62 +439,33 @@ export async function generateRefinedPlan(
 
   // Mark selected suggestions in the previous content
   // FIX: Add fallback to empty array in case suggestions property is missing
-  const previousSuggestions = (previousPlanVersionContent.suggestions || []).map(s => ({
-    ...s,
-    selected: selectedSuggestionIds.includes(s.id)
+  const previousSuggestions = (previousPlanVersionContent.suggestions || []).map(suggestion => ({
+    ...suggestion,
+    selected: selectedSuggestionIds.includes(suggestion.id)
   }));
 
-  const prompt = `
-**System Message:** You are an expert web development consultant. Your task is to refine an existing website plan based on user feedback and selected suggestions, ensuring the output is a valid JSON object.
+  // Load instructions from file
+  const instructionsPath = path.join(process.cwd(), 'prompts', 'generateRefinedPlanInstructions.txt');
+  let instructions = '';
+  try {
+    instructions = fs.readFileSync(instructionsPath, 'utf-8');
+  } catch (error) {
+    console.error("Error reading instructions file:", instructionsPath, error);
+    // Handle error appropriately, maybe throw or return a default error response
+    throw new Error("Could not load AI instructions for refining the plan.");
+  }
 
-**Context:**
+  // Define example JSON objects as constants to avoid template literal parsing issues
+  const exampleRefinedOutput = {
+    "planText": "# Executive Summary\\n...\\n# Site Architecture Diagram\\n\\`\\`\\`mermaid\\ngraph TD;\\n    A-->B;\\n\\`\\`\\`\\n... rest of the plan ...",
+    "suggestions": [
+      { "id": "new-sugg-001", "title": "Implement gamification", "description": "To increase user engagement.", "category": "Functionality", "selected": false }
+      // ... other new suggestions
+    ]
+  };
 
-**User-Provided Website Description:**
-${projectDescription}
-
-**Research Data:**
-\`\`\`json
-${JSON.stringify(researchData, null, 2)}
-\`\`\`
-
-**Previous Website Plan (including suggestions):**
-\`\`\`json
-${JSON.stringify({ ...previousPlanVersionContent, suggestions: previousSuggestions }, null, 2)}
-\`\`\`
-*Note: The 'selected: true' flag in the suggestions above indicates features the user explicitly wants to include.*
-
-**User's Written Feedback:**
-${userWrittenFeedback || "No written feedback provided."}
-
-**Task:**
-Generate a **new, refined website plan** by performing the following steps:
-
-1.  **Integrate Written Feedback:** Carefully review the "User's Written Feedback" and modify the "Previous Website Plan" text accordingly. Address the user's comments and requested changes.
-2.  **Incorporate Selected Suggestions:** Identify all suggestions in the "Previous Website Plan" JSON where \`"selected": true\`. **Rewrite the relevant sections of the plan text (e.g., Core Features, Technology Stack) to explicitly include these selected features.** Do NOT simply list them; integrate them naturally into the plan description.
- 3.  **Generate NEW Suggestions:** Based *specifically* on the **User Feedback** provided, generate a list of 1-3 NEW, actionable, and creative feature or improvement suggestions that were *not* covered by the user's explicit feedback or selected items but are relevant to addressing the underlying goals implied by the feedback. For each NEW suggestion, provide a brief justification.
- 4.  **Maintain Structure & Context:** Ensure the refined plan retains the original structure (Executive Summary, Goals, etc.) and remains consistent with the "User-Provided Website Description" and "Research Data".
-  5.  **Handle Diagram Sections (Mermaid):**
-     *   Identify sections in the "Previous Website Plan" with titles like **'Site Architecture Diagram', 'User Flow Diagram', 'Database Schema Diagram', 'Mind Map Diagram'**.
-     *   For each such section, **preserve the existing Mermaid syntax** unless the user's feedback specifically requests changes to that particular diagram/structure. The content MUST remain ONLY valid Mermaid code starting with the appropriate declaration (e.g., graph TD, erDiagram, mindmap).
-     *   If feedback *does* require changes to a specific diagram section, **regenerate the appropriate Mermaid syntax** for that section (e.g., graph TD for Site Architecture Diagram, graph LR/flowchart LR for User Flow Diagram, erDiagram for Database Schema Diagram, mindmap for Mind Map Diagram) to reflect the changes.
-     *   The output for any diagram section **MUST START with the correct declaration and contain ONLY the Mermaid code block itself**, without surrounding text or Markdown headers within the section content.
-
-**Output Format:**
-Output ONLY a valid JSON object with two keys:
-- \`"planText"\`: A string containing the complete, refined plan in Markdown format. This text **must** now include the features from the selected suggestions.
-- \`"suggestions"\`: An array of *new* suggestion objects generated during refinement (or an empty array \`[]\`). Each suggestion object should have \`id\` (UUID), \`title\` (string), \`description\` (string), \`category\` (string, e.g., 'UI/UX', 'Functionality', 'Monetization'), and \`selected\` (boolean, always false for new suggestions).
-
-**Example JSON Output:**
-\`\`\`json
-{
-  "planText": "# Executive Summary\\n...\\n\\n# Goals\\n...",
-  "suggestions": [
-    { "id": "new-sugg-001", "title": "Implement gamification", "description": "To increase user engagement.", "category": "Functionality", "selected": false },
-    { "id": "new-sugg-002", "title": "Integrate with social media", "description": "To enhance user sharing capabilities.", "category": "UI/UX", "selected": false }
-  ]
-}
-\`\`\`
-`;
+  // Construct the prompt dynamically
+  const prompt = `${instructions}${JSON.stringify(exampleRefinedOutput, null, 2)}\n\n---\n**Inputs:**\n\n**Previous Plan Text:**\n\\\`\\\`\\\`markdown\n${previousPlanVersionContent.planText}\n\\\`\\\`\\\`\n\n**User Feedback:**\n\\\`\\\`\\\`\n${userWrittenFeedback}\n\\\`\\\`\\\`\n\n**Selected Suggestions:**\n\\\`\\\`\\\`json\n${JSON.stringify(previousSuggestions, null, 2)}\n\\\`\\\`\\\`\n---\n\n**Refined Plan JSON Output:**`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -323,6 +499,9 @@ Output ONLY a valid JSON object with two keys:
     // Ensure suggestions have unique IDs if they don't already
     const finalPlanData = ensureUniqueSuggestionIds(refinedPlanData);
 
+    // Clean Mermaid code before returning
+    finalPlanData.planText = cleanMermaidCode(finalPlanData.planText);
+
     // FIX: Return the stringified version of the PARSED and potentially modified data
     return JSON.stringify(finalPlanData);
 
@@ -336,6 +515,20 @@ Output ONLY a valid JSON object with two keys:
     }
     return null;
   }
+}
+
+/**
+ * Cleans Mermaid code blocks within a given text by removing HTML comment tags.
+ * @param text The text containing potential Mermaid code blocks.
+ * @returns The text with HTML comments removed from Mermaid blocks.
+ */
+function cleanMermaidCode(text: string): string {
+  if (!text) return text;
+  // Regex to find mermaid code blocks and replace <!-- and --> within them
+  return text.replace(/(\\`\\`\\`mermaid\\n?)([\\s\\S]*?)(\\n?\\`\\`\\`)/g, (match, start, content, end) => {
+    const cleanedContent = content.replace(/<!--|-->/g, ''); // Remove the HTML comment tags
+    return `${start}${cleanedContent}${end}`; // Reconstruct the block
+  });
 }
 
 /**
@@ -416,6 +609,29 @@ export async function generateImplementationPrompts(
   planContentText: string
 ): Promise<ImplementationPrompts | null> {
   console.log("Generating implementation prompts...");
+  
+  // Define example JSON objects as constants to avoid template literal parsing issues
+  const exampleImplementationOutput = {
+    "frontend": [
+      {
+        "title": "Setup React Project Structure",
+        "promptText": "Generate the initial folder structure for a React project using Create React App, including folders for components, services, and styles."
+      }
+    ],
+    "backend": [
+      {
+        "title": "Create User Authentication Endpoint",
+        "promptText": "Write the Node.js/Express code for a POST endpoint '/api/auth/login' that validates user credentials against a database."
+      }
+    ],
+    "database": [
+      {
+        "title": "Design User Schema",
+        "promptText": "Provide the SQL schema for a 'users' table including id, username, email, password_hash, created_at, and updated_at fields."
+      }
+    ]
+  };
+
   const prompt = `
 You are an expert software development assistant. Based on the provided website plan, generate a series of actionable implementation prompts categorized by Frontend, Backend, and Database tasks. Each prompt should have a clear title and detailed instructions.
 
@@ -425,28 +641,7 @@ ${planContentText}
 Generate a JSON object where keys are categories ("frontend", "backend", "database") and values are arrays of prompt objects, each containing "title" and "promptText".
 
 **Example JSON Output:**
-\`\`\`json
-{
-  "frontend": [
-    {
-      "title": "Create User Profile Page UI",
-      "promptText": "Using React and Tailwind CSS, create the UI components for the user profile page as described in the plan. Include fields for username, email, profile picture upload, and bio."
-    }
-  ],
-  "backend": [
-    {
-      "title": "Implement User Authentication API",
-      "promptText": "Create API endpoints for user registration, login, and session management using Node.js, Express, and bcrypt for password hashing. Store user data in the PostgreSQL database according to the schema."
-    }
-  ],
-  "database": [
-    {
-      "title": "Define User Table Schema",
-      "promptText": "Write the SQL or Prisma schema definition for the 'User' table, including columns for id, name, email (unique), password_hash, profile_picture_url, bio, createdAt, updatedAt."
-    }
-  ]
-}
-\`\`\`
+${JSON.stringify(exampleImplementationOutput, null, 2)}
 `;
 
   try {

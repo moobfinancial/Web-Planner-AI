@@ -180,7 +180,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
   } catch (error) {
     console.error(`Error deleting project ${projectId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    let errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     // Avoid Prisma error codes in user-facing messages if possible
     let statusCode = 500;
     if ((error as any)?.code === 'P2025') { // Prisma code for record not found during delete

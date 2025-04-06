@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,8 +19,21 @@ interface PlanVersionWithStatus extends Plan {
   projectName?: string;
 }
 
-function PlanPageContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id: projectId } = React.use(params); 
+// Modified to handle both Promise and direct object params
+function PlanPageContent({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  // Safely extract projectId, handling both Promise and direct object cases
+  const projectId = useMemo(() => {
+    if (params instanceof Promise) {
+      try {
+        return React.use(params).id;
+      } catch (e) {
+        console.error("Error unwrapping params promise:", e);
+        return "";
+      }
+    } 
+    return params.id;
+  }, [params]);
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const requestedVersionId = searchParams.get("version");
@@ -227,7 +240,7 @@ function PlanPageContent({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-export default function PlanPageWrapper({ params }: { params: Promise<{ id: string }> }) {
+export default function PlanPageWrapper({ params }: { params: Promise<{ id: string }> | { id: string } }) {
   return (
     <Suspense fallback={<div>Loading plan details...</div>}> 
       <PlanPageContent params={params} />

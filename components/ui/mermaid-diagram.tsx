@@ -13,93 +13,127 @@ interface MermaidDiagramProps {
   id: string;    // Unique ID for the diagram container
 }
 
-// Initialize Mermaid once on the client
+// Initialize Mermaid once on the client with error handling
 if (typeof window !== 'undefined') {
-  mermaid.initialize({
-    startOnLoad: false, // We will render manually
-    theme: 'default', // Or 'dark', 'neutral', 'forest'
-    // securityLevel: 'loose', // Consider security implications if needed
-  });
-  // console.log("Mermaid initialized");
+  try {
+    mermaid.initialize({
+      startOnLoad: false, // We will render manually
+      theme: 'default', // Or 'dark', 'neutral', 'forest'
+      securityLevel: 'loose', // Needed to allow rendering in our component
+      logLevel: 'error', // Only show errors, not warnings
+      fontFamily: 'inherit', // Use the app's font
+    });
+    console.log("Mermaid initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize Mermaid:", error);
+  }
 }
 
 const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [hasError, setHasError] = useState(false);
-  // No longer need errorMessage state for user display
+  const [isLoading, setIsLoading] = useState(true);
+  const [svgContent, setSvgContent] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderId = useRef(0); // To handle potential race conditions
 
   useEffect(() => {
     setIsMounted(true);
+    
+    // Cleanup function to handle component unmounting
+    return () => {
+      // Clear any content in the container to prevent DOM manipulation errors
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
   }, []);
 
   useEffect(() => {
+    // Skip rendering if not mounted yet
+    if (!isMounted || !containerRef.current) return;
+    
     // Define an async function inside useEffect
     const renderDiagram = async () => {
-      if (!containerRef.current) return; // Guard clause
-
       const currentRenderId = ++renderId.current; // Increment for this render attempt
       setHasError(false); // Reset error state
+      setIsLoading(true); // Start loading
+      setSvgContent(null); // Clear any previous SVG content
 
       // Basic validation: Check if chart is a non-empty string
       if (!chart || typeof chart !== 'string' || chart.trim().length === 0) {
         console.warn(`Mermaid diagram ${id}: Invalid or empty chart string provided.`);
         setHasError(true);
-        if (containerRef.current) {
-          containerRef.current.innerHTML = ''; // Clear potentially old diagram
-        }
+        setIsLoading(false);
         return; // Stop processing if chart is invalid or empty
       }
 
-      const container = containerRef.current;
-      // Ensure container is empty before rendering
-      container.innerHTML = '';
-      container.removeAttribute('data-processed'); // Allow re-processing by mermaid
-
-      // Create the specific div mermaid needs
-      const mermaidDiv = document.createElement('div');
-      mermaidDiv.className = 'mermaid';
-      mermaidDiv.textContent = chart; // Use textContent to avoid potential XSS with chart content if it were HTML
-      container.appendChild(mermaidDiv);
-
-      // console.log(`Mermaid diagram ${id}: Attempting to render...`);
       try {
-        // Use mermaid.render instead of run for potentially better control/error handling
-        // Generate a unique ID for the SVG to avoid conflicts if multiple diagrams are on page
+        // Use a try/catch block to handle chunk loading errors
         const svgId = `mermaid-svg-${id}-${currentRenderId}`;
-        // Now 'await' is valid within this async function
-        const { svg } = await mermaid.render(svgId, chart);
-
-        // Check if the render was for the latest chart prop
-        if (currentRenderId === renderId.current && containerRef.current) {
-           // console.log(`Mermaid diagram ${id}: Render successful.`);
-           containerRef.current.innerHTML = svg; // Replace container content with SVG
-           setHasError(false); // Ensure error is cleared on success
-        } else {
-           // console.log(`Mermaid diagram ${id}: Stale render ignored.`);
+        
+        // Attempt to render with error handling
+        try {
+          const { svg } = await mermaid.render(svgId, chart);
+          
+          // Check if the render was for the latest chart prop
+          if (currentRenderId === renderId.current) {
+            // Store the SVG content in state instead of directly manipulating the DOM
+            setSvgContent(svg);
+            setHasError(false);
+          }
+        } catch (renderError) {
+          console.error(`Error rendering Mermaid diagram ${id}:`, renderError);
+          
+          // Try a second approach with parse + render if the first fails
+          try {
+            // Parse the diagram first to validate syntax
+            await mermaid.parse(chart);
+            
+            // Create a temporary div for rendering that's not attached to the DOM
+            const tempDiv = document.createElement('div');
+            tempDiv.className = 'mermaid';
+            tempDiv.textContent = chart;
+            
+            // Use mermaid.render with the temporary div
+            const { svg } = await mermaid.render(svgId, chart);
+            
+            if (currentRenderId === renderId.current) {
+              setSvgContent(svg);
+              setHasError(false);
+            }
+          } catch (fallbackError) {
+            console.error(`Fallback rendering also failed for diagram ${id}:`, fallbackError);
+            setHasError(true);
+          }
         }
       } catch (error) {
-         // This catches syntax errors and other rendering issues from mermaid.render
-         if (currentRenderId === renderId.current) {
-           console.error(`Error rendering Mermaid diagram ${id}:`, error);
-           setHasError(true);
-           // Clear the container in case of partial render or error message injection by mermaid
-           if (containerRef.current) {
-             containerRef.current.innerHTML = '';
-           }
-         }
+        console.error(`Fatal error with Mermaid diagram ${id}:`, error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false); // Always mark loading as complete
       }
-      /* Old mermaid.run logic - replaced by mermaid.render
-      */
     };
 
-    // Call the async function only when mounted
-    if (isMounted) {
-      renderDiagram();
-    }
-    // Cleanup function or dependency array logic remains the same
+    // Call the async function
+    renderDiagram();
+    
   }, [chart, id, isMounted]); // Rerun when chart, id, or mount status changes
+
+  // Update the DOM with SVG content when it changes
+  useEffect(() => {
+    if (svgContent && containerRef.current) {
+      // Safely update the container content
+      try {
+        containerRef.current.innerHTML = svgContent;
+      } catch (error) {
+        console.error(`Error updating SVG content for diagram ${id}:`, error);
+        setHasError(true);
+        // Clear the container to prevent partial renders
+        containerRef.current.innerHTML = '';
+      }
+    }
+  }, [svgContent, id]);
 
   if (!isMounted) {
     // Still rendering server-side or waiting for hydration
@@ -119,7 +153,6 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
 
   // If no error, render the interactive diagram
   return (
-    // Use card styling for consistency? Or keep simple border? Let's keep simple border for now.
     <div className="mermaid-diagram-wrapper border rounded-lg overflow-hidden relative bg-card/30 dark:bg-card/50 shadow-sm">
       <TransformWrapper
         initialScale={1}
@@ -155,8 +188,8 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
                 id={id}
                 className="mermaid-container-content flex justify-center items-center min-h-[250px] bg-background p-2" // Slightly increased min-height and added padding
               >
-                {/* Placeholder while SVG is rendering, removed once mermaid injects SVG - Use slightly larger skeleton */}
-                <Skeleton className="h-60 w-full" />
+                {/* Placeholder while SVG is rendering */}
+                {isLoading && <Skeleton className="h-60 w-full" />}
               </div>
             </TransformComponent>
           </>
