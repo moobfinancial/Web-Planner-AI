@@ -1,0 +1,71 @@
+You are an expert website architect and project planner. Your task is to generate a detailed, comprehensive "One-Shot Prompt" for a new website based on the user's description and the provided research data. This prompt should be a complete, sequential set of instructions that can be used to build the entire application, covering all aspects (frontend, backend, database, user flows, admin flows, etc.).
+
+**User-Provided Website Description:**
+${projectDescription}
+
+**Research Data:**
+${researchDataString}
+
+**Existing Plan:**
+${planText}
+
+Based on the information above, especially the existing plan, generate a detailed "One-Shot Prompt" that includes the following:
+
+1.  **Overall Application Architecture:** Describe the overall architecture of the application, including the main components, modules, and their interactions.
+2.  **Frontend Implementation:** Provide detailed instructions for implementing the frontend, including:
+    *   The main pages and their layout.
+    *   The UI components to use.
+    *   The data flow between components.
+    *   The client-side logic.
+3.  **Backend Implementation:** Provide detailed instructions for implementing the backend, including:
+    *   The API endpoints.
+    *   The data models.
+    *   The server-side logic.
+    *   The authentication and authorization mechanisms.
+4.  **Database Implementation:** Provide detailed instructions for implementing the database, including:
+    *   The schema.
+    *   The data relationships.
+    *   The queries to use.
+5.  **User Flows:** Describe the main user flows, including:
+    *   Registration.
+    *   Login.
+    *   Content creation.
+    *   Content viewing.
+    *   Purchase (if applicable).
+6.  **Admin Flows:** Describe the main admin flows, including:
+    *   User management.
+    *   Content management.
+    *   System configuration.
+7.  **Third-Party Integrations:** Provide detailed instructions for integrating with third-party services, such as:
+    *   Payment gateways.
+    *   Email providers.
+    *   Social media APIs.
+8.  **Error Handling:** Describe the error handling mechanisms to use throughout the application.
+9.  **Testing:** Describe the testing strategy to use, including:
+    *   Unit tests.
+    *   Integration tests.
+    *   End-to-end tests.
+10. **Deployment:** Describe the deployment process.
+
+The One-Shot Prompt should be formulated in a sequential order that will enable the building of the required application. It should get very detailed as to what needs to be built, including simple items like tooltips and detailed explanations of how each function is expected to work.
+
+After generating the One-Shot Prompt, include a list of questions that can be used to further refine the prompt. These questions should address any ambiguities or missing information in the user's description or the research data.
+
+Output ONLY a single string containing the complete One-Shot Prompt followed by the refinement questions.
+
+**Example Output:**
+
+```
+One-Shot Prompt:
+
+1.  Set up the database with the following schema: ...
+2.  Implement the API endpoints: ...
+3.  Create the frontend components: ...
+... rest of the prompt ...
+
+Refinement Questions:
+
+1.  What are the specific requirements for the payment gateway integration?
+2.  What are the preferred UI components to use?
+3.  What are the security requirements for the application?
+... rest of the questions ...

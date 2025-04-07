@@ -7,7 +7,8 @@ import { AlertCircle, Loader2, Sparkles, CheckCircle, XCircle } from 'lucide-rea
 import ReactMarkdown from 'react-markdown';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PdfExportDialog } from "@/components/ui/pdf-export-dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -44,20 +45,15 @@ const PLAN_SECTIONS_ORDERED: [string, string][] = [
   ['Target Audience', 'Target Audience'],
   ['Core Features', 'Core Features'],
   ['Technology Stack', 'Technology Stack'],
-  ['Site Architecture', 'Site Architecture'],
+  ['Site Architecture Diagram', 'Site Architecture'],
+  ['User Flow Diagram', 'User Flow'],
+  ['Database Schema Diagram', 'Database Schema'],
+  ['Mind Map Diagram', 'Mind Map'],
   ['SEO Considerations', 'SEO Considerations'],
-  ['Competitive Analysis', 'Competitive Analysis'],
   ['Monetization Strategy', 'Monetization Strategy']
 ];
 
-
-// List of section titles (normalized) that are candidates for Mermaid rendering
-const DIAGRAM_CANDIDATE_SECTIONS = [
-  'site architecture',
-  'user flow', // Example: Add other sections expected to have diagrams
-  'database schema', // Example
-  // Add more normalized section titles here as needed
-];
+const sectionDisplayTitles: { [key: string]: string } = Object.fromEntries(PLAN_SECTIONS_ORDERED);
 
 // Helper function to extract sections from Markdown text
 function parseMarkdownSections(markdown: string): { [key: string]: string } {
@@ -157,6 +153,7 @@ export function PlanDetails({ planId, initialPlanVersion, onRefinementSuccess }:
           if (parsedContentObject.planText && typeof parsedContentObject.planText === 'string') {
             const extractedSections = parseMarkdownSections(parsedContentObject.planText);
             setParsedPlanSections(extractedSections);
+            console.log('[PlanDetails useEffect] Parsed Sections:', extractedSections);
             setHasContent(Object.values(extractedSections).some(content => content.trim() !== ''));
             const displayTitles: { [key: string]: string } = {};
             Object.keys(extractedSections).forEach(key => displayTitles[key] = key);
@@ -461,29 +458,45 @@ export function PlanDetails({ planId, initialPlanVersion, onRefinementSuccess }:
 
       {hasContent ? (
                   Object.entries(parsedPlanSections).map(([sectionTitle, sectionContent]) => {
-                    // Determine if this section is specifically a diagram section
-                    const isDiagramSection = sectionTitle.toLowerCase().trim().endsWith(' diagram');
                     const uniqueSectionId = sectionTitle.replace(/\s+/g, '-').toLowerCase();
-        
+                    let mermaidCode: string | null = null;
+                    let textContent = sectionContent; // Start with the full content
+
+                    // Check if the section content contains a Mermaid block
+                    const match = sectionContent.match(/```mermaid\s*([\s\S]*?)\s*```/);
+                    if (match && match[1]) {
+                      mermaidCode = match[1].trim(); // Extract the code if found
+                      // Remove the mermaid block from the text content
+                      textContent = sectionContent.replace(/```mermaid\s*[\s\S]*?\s*```/, '').trim();
+                    }
+
+                    // console.log(`[PlanDetails Render] Section: "${sectionTitle}", FoundCode: ${mermaidCode ? 'Yes' : 'No'}`); // Keep or remove this debug log
+
                     return (
                       <div key={sectionTitle} className="space-y-3 p-4 border rounded-lg shadow-sm bg-card">
                         <h3 className="text-xl font-semibold mb-2 border-b pb-2">{sectionDisplayTitles[sectionTitle] || sectionTitle}</h3>
-        
-                        {/* Conditional rendering for Diagram vs Markdown */}
-                        {isDiagramSection ? (
-                          // Render ONLY the diagram if it's a diagram section
-                          <MermaidDiagram chart={sectionContent} id={`mermaid-${uniqueSectionId}`} />
-                        ) : (
-                          // Render Markdown for regular sections
-                          <div className="max-w-none prose prose-sm dark:prose-invert">
-                            {sectionContent ? (
-                              <ReactMarkdown>{sectionContent}</ReactMarkdown>
-                            ) : (
-                              <p className="text-muted-foreground italic">Content not available for this section.</p>
-                            )}
-                          </div>
+
+                        {/* Always render the text content (Mermaid block removed if present) */}
+                        <div className="max-w-none prose prose-sm dark:prose-invert">
+                          {textContent ? (
+                            <ReactMarkdown>{textContent}</ReactMarkdown>
+                          ) : (
+                            // If there's no text *and* no diagram, show placeholder
+                            !mermaidCode && <p className="text-muted-foreground italic">Content not available for this section.</p>
+                          )}
+                        </div>
+
+                        {/* If Mermaid code was found, render it within an Accordion */}
+                        {mermaidCode && (
+                          <Accordion type="single" collapsible className="w-full pt-2">
+                            <AccordionItem value="item-1">
+                              <AccordionTrigger className="text-sm py-2">View/Hide Diagram</AccordionTrigger>
+                              <AccordionContent>
+                                <MermaidDiagram chart={mermaidCode} id={`mermaid-${uniqueSectionId}`} />
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         )}
-        
                         {/* Feedback section - rendered for ALL sections */}
                         <div className="pt-3 border-t mt-4">
                           <Label htmlFor={`feedback-${sectionTitle}`} className="text-xs font-medium text-muted-foreground">Feedback for {sectionDisplayTitles[sectionTitle] || sectionTitle}:</Label>
@@ -553,13 +566,20 @@ export function PlanDetails({ planId, initialPlanVersion, onRefinementSuccess }:
       )}
 
       <div className="pt-6 border-t mt-8">
-          <Button
-            onClick={handleOpenConfirmation}
-            disabled={!isSubmitEnabled}
-            className="h-11 rounded-md px-8"
-          >
-              Review & Submit Feedback {/* Removed spinner tied to unused isLoading state */}
-          </Button>
+          <div className="flex gap-3">
+              <Button
+                  onClick={handleOpenConfirmation}
+                  disabled={!isSubmitEnabled}
+                  className="h-11 rounded-md px-8"
+              >
+                  Review & Submit Feedback
+              </Button>
+              <PdfExportDialog 
+                  planId={planVersion.id}
+                  contentRef={parsedPlanSections}
+                  projectId={planVersion.projectId!}
+              />
+          </div>
           {!isSubmitEnabled && (
             <p className="text-xs text-muted-foreground mt-2">
                 Please provide feedback or select an AI suggestion to enable submission.

@@ -1,3 +1,6 @@
+// Add this line to explicitly mark the route as dynamic
+export const dynamic = 'force-dynamic';
+
 import NextAuth, { AuthOptions, DefaultSession } from "next-auth"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { PrismaClient } from "@prisma/client"

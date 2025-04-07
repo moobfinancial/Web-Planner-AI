@@ -1,11 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
+import { hash } from 'bcryptjs';
 
 async function main() {
   // Hash the password
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedPassword = await hash('admin123', 10);
 
   // Check if the admin user already exists
   const existingAdminUser = await prisma.user.findUnique({
@@ -16,7 +14,7 @@ async function main() {
 
   if (existingAdminUser) {
     // Re-hash the password
-    const newHashedPassword = await bcrypt.hash('admin123', 10);
+    const newHashedPassword = await hash('admin123', 10);
 
     // Update the existing admin user's password and role to ADMIN
     const updatedAdminUser = await prisma.user.update({

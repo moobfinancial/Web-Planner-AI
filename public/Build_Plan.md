@@ -60,9 +60,10 @@ ADMIN_EMAIL="admin@example.com"
 - [x] Plan creation
 - [x] Plan editing
 - [x] Version control
-- [ ] Export functionality
+- [x] Export functionality
 - [x] AI-powered suggestions ( Done )
-- [x] Plan Iteration via Feedback (Feedback UI & API Call Done) 
+- [x] Plan Iteration via Feedback (Feedback UI & API Call Done)
+- [x] **One-Shot Prompt & Build Plan Tracking** (Generation, Refinement, UI Tab, Activity Logging, Checkbox Task Tracking + API Integration implemented; Sharing pending)
 - [x] Interactive mind maps and flowcharts (Mermaid rendering implemented for candidate sections like Site Architecture, User Flow, DB Schema; AI prompts updated to request specific diagram types; Needs styling refinement)
 
 #### User Features
@@ -203,6 +204,25 @@ webplanner_withadmin/
 - [ ] Minimize bundle size
 - [ ] Enable PWA features
 
+## Fixes Applied (2025-04-05)
+
+- Downgraded Next.js from 15.2.4 to 14.2.0 to resolve NextAuth incompatibility.
+- Cleaned `.next` cache, `node_modules`, and lockfile, then reinstalled dependencies.
+- Fixed build-breaking `const` reassignment errors in:
+  - `app/api/projects/[id]/route.ts`
+  - `app/api/projects/[id]/status/route.ts`
+- Confirmed no `useLayoutEffect` misuse in user code; warning was from Next.js Dev Overlay internals.
+- Build now completes successfully.
+
+## Known Issues To Address Next
+
+- Prisma `activity.create` calls include a `metadata` property, which does not exist in the Prisma schema. Either:
+  - Add a `metadata` JSON field to the `Activity` model, or
+  - Remove/replace the `metadata` property in API calls.
+- Prisma model references to `Activity` (capitalized) instead of `activity` (lowercase).
+- Deprecated npm packages and vulnerabilities (optional to fix now).
+- Implement remaining features and admin tools as outlined below.
+
 ## Next Steps
 
 1. **Collaboration Tools**
@@ -219,5 +239,3 @@ webplanner_withadmin/
    - Implement AI-powered suggestions
    - Add content generation capabilities
    - Create interactive mind maps and flowcharts
-
-`

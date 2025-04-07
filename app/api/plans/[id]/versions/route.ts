@@ -336,25 +336,32 @@ export async function POST(request: NextRequest, context: PostContext) {
     });
     console.log(`[POST Handler] New plan version created successfully with ID: ${newPlanVersion.id}`);
 
-    // Log activity after successful creation
+    // Log activity and revalidate
     try {
-        await prisma.activity.create({
-            data: {
-                type: "PLAN_VERSION_CREATED", // Use string literal as type is String in schema
-                userId: session.user.id,
-                projectId: projectId,
-                details: `Created plan version ${newPlanVersion.versionNumber} (ID: ${newPlanVersion.id}) for project ${projectId}`,
-                planId: newPlanVersion.id, // Link activity to the new plan version
-            },
-        });
-        console.log(`[POST Handler] Activity logged for PLAN_VERSION_CREATED: ${newPlanVersion.id}`);
+        await prisma.$transaction([
+            prisma.activity.create({
+                data: {
+                    type: "PLAN_VERSION_CREATED",
+                    userId: session.user.id,
+                    projectId: projectId,
+                    details: `Created version ${newVersionNumber} of plan`,
+                    planId: newPlanVersion.id,
+                }
+            }),
+            prisma.activity.updateMany({
+                where: { projectId: projectId },
+                data: { updatedAt: new Date() }
+            })
+        ]);
+        
+        // Force revalidation of dashboard and plan pages
+        revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/plans/${newPlanVersion.id}`);
+        revalidatePath(`/api/activities?project=${projectId}`);
+        
     } catch (activityError) {
-        console.error(`[POST Handler] Failed to log PLAN_VERSION_CREATED activity for plan ${newPlanVersion.id}:`, activityError);
-        // Non-critical error, don't fail the request, just log it.
+        console.error('Activity logging failed:', activityError);
     }
-
-    // Revalidate the dashboard path to ensure fresh activity data is shown
-    revalidatePath('/dashboard');
     console.log(`[POST Handler] Revalidated /dashboard path.`);
 
     return NextResponse.json({ planVersion: newPlanVersion }, { status: 201 });

@@ -26,8 +26,18 @@ export default withAuth(
   }
 )
 
+// Add this config to specify which routes the middleware should run on.
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|login|signup).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth API routes)
+     * - api/public (Example: for public API endpoints)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - login (the login page itself)
+     */
+    '/((?!api/auth|api/public|_next/static|_next/image|favicon.ico|login).*)',
   ],
 }
