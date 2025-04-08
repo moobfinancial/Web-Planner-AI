@@ -1,4 +1,6 @@
 import Link from "next/link"
+// Add back the dynamic export
+export const dynamic = 'force-dynamic';
 import { unstable_noStore as noStore } from 'next/cache'; // Import noStore for granular control if needed, but dynamic export is preferred for the whole page
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +12,6 @@ import { redirect } from "next/navigation"
 import { Project, ProjectStatus } from "@prisma/client"
 
 // Removed force-dynamic export; using revalidatePath in the API route instead
-// export const dynamic = 'force-dynamic';
 // export const revalidate = 0;
 
 async function getDashboardData() {

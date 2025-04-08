@@ -69,8 +69,10 @@ export function SettingsManagement() {
 
   const handleSaveSettings = async () => {
     setIsSaving(true)
-
-    // Simulate API call
+    // Simulate API call (replace with actual API call later)
+    console.log("Saving General Settings:", generalSettings)
+    console.log("Saving Email Settings:", emailSettings)
+    console.log("Saving Appearance Settings:", appearanceSettings)
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     toast({
@@ -347,4 +349,3 @@ export function SettingsManagement() {
     </div>
   )
 }
-

@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 
 interface AIProviderDialogProps {
   open: boolean
@@ -24,27 +23,25 @@ interface AIProviderDialogProps {
 }
 
 export function AIProviderDialog({ open, onOpenChange, provider, onSave }: AIProviderDialogProps) {
+  // Use correct state fields matching the AIProvider interface/schema
   const [providerData, setProviderData] = useState({
     name: "",
-    apiKey: "",
-    endpoint: "",
-    status: "active",
+    apiKeyEnvVarName: "", // Changed from apiKey
+    baseUrl: "", // Changed from endpoint
   })
 
   useEffect(() => {
     if (provider) {
       setProviderData({
         name: provider.name,
-        apiKey: provider.apiKey,
-        endpoint: provider.endpoint,
-        status: provider.status,
+        apiKeyEnvVarName: provider.apiKeyEnvVarName || "", // Use correct field
+        baseUrl: provider.baseUrl || "", // Use correct field
       })
     } else {
       setProviderData({
         name: "",
-        apiKey: "",
-        endpoint: "",
-        status: "active",
+        apiKeyEnvVarName: "", // Use correct field
+        baseUrl: "", // Use correct field
       })
     }
   }, [provider, open])
@@ -81,46 +78,33 @@ export function AIProviderDialog({ open, onOpenChange, provider, onSave }: AIPro
                 value={providerData.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 className="col-span-3"
-                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="apiKey" className="text-right">
-                API Key
+              <Label htmlFor="apiKeyEnvVarName" className="text-right">
+                API Key Env Var
               </Label>
               <Input
-                id="apiKey"
-                type="password"
-                value={providerData.apiKey}
-                onChange={(e) => handleChange("apiKey", e.target.value)}
+                id="apiKeyEnvVarName"
+                type="text" // Changed from password, as it's an env var name
+                placeholder="e.g., OPENAI_API_KEY"
+                value={providerData.apiKeyEnvVarName}
+                onChange={(e) => handleChange("apiKeyEnvVarName", e.target.value)}
                 className="col-span-3"
-                required
               />
+              {/* Add helper text/tooltip about using env var names */}
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="endpoint" className="text-right">
-                API Endpoint
+              <Label htmlFor="baseUrl" className="text-right">
+                Base URL (Optional)
               </Label>
               <Input
-                id="endpoint"
-                value={providerData.endpoint}
-                onChange={(e) => handleChange("endpoint", e.target.value)}
+                id="baseUrl"
+                placeholder="e.g., https://api.openai.com/v1"
+                value={providerData.baseUrl}
+                onChange={(e) => handleChange("baseUrl", e.target.value)}
                 className="col-span-3"
-                required
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <div className="flex items-center gap-2 col-span-3">
-                <Switch
-                  id="status"
-                  checked={providerData.status === "active"}
-                  onCheckedChange={(checked) => handleChange("status", checked ? "active" : "inactive")}
-                />
-                <Label htmlFor="status">{providerData.status === "active" ? "Active" : "Inactive"}</Label>
-              </div>
             </div>
           </div>
           <DialogFooter>
@@ -131,4 +115,3 @@ export function AIProviderDialog({ open, onOpenChange, provider, onSave }: AIPro
     </Dialog>
   )
 }
-

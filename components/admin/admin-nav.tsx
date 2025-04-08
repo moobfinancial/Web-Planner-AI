@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn, buttonVariants } from "@/lib/utils"
-import { LayoutDashboard, Users, Cpu, MessageSquare, Settings, ShieldAlert, BarChart } from "lucide-react"
+import { LayoutDashboard, Users, Cpu, MessageSquare, Settings, ShieldAlert, BarChart, ListChecks } from "lucide-react"
 
 export function AdminNav() {
   const pathname = usePathname()
@@ -43,6 +43,11 @@ export function AdminNav() {
       title: "Settings",
       href: "/admin/settings",
       icon: <Settings className="h-4 w-4" />,
+    },
+    {
+      title: "Activity Log",
+      href: "/admin/activity",
+      icon: <ListChecks className="h-4 w-4" />,
     },
   ]
 
