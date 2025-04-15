@@ -8,10 +8,20 @@ import { Label } from "@/components/ui/label"
 import { useForm } from "react-hook-form"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { signIn, useSession, signOut } from "next-auth/react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1, { message: "Password is required" })
+})
+
+type LoginFormValues = z.infer<typeof loginSchema>
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const { update } = useSession()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -20,39 +30,45 @@ export default function AdminLoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   })
 
-  const onSubmit = async (data: { email: string; password: string }) => {
+  const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true)
     setError(null)
+    console.log("[Admin Login Page] Attempting sign in..."); // Log attempt
 
     try {
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        redirect: false,
+        redirect: true, // Let NextAuth handle the redirect
+        callbackUrl: "/admin/dashboard" // Specify desired destination for admin
       })
 
+      // If redirect is true, this part is usually only reached if there's an error
       if (result?.error) {
-        setError("Invalid email or password")
-      } else if (result?.ok) {
-        // Check if user has ADMIN role
-        const session = await fetch('/api/auth/session').then(res => res.json())
-        if (session?.user?.role === 'ADMIN') {
-          router.push("/admin/dashboard")
+        console.error("[Admin Login Page] Sign in error:", result.error); // Log error
+        // Map common errors or show a generic message
+        if (result.error === "CredentialsSignin") {
+             setError("Invalid email or password.");
         } else {
-          setError("Access denied. You must be an administrator.")
+             setError("An unexpected error occurred during login.");
         }
-      }
+        setIsLoading(false); // Stop loading on error
+      } 
+      // No need for success handling here, redirect takes over
+      // No need for explicit finally block if setIsLoading(false) is handled in error path
+      
     } catch (err) {
+      console.error("[Admin Login Page] Unexpected catch block error:", err); // Log any unexpected errors
       setError("An error occurred during login")
-    } finally {
       setIsLoading(false)
-    }
+    } 
   }
 
   return (
@@ -96,13 +112,7 @@ export default function AdminLoginPage() {
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  {...register("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address",
-                    },
-                  })}
+                  {...register("email")}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email.message}</p>
@@ -114,13 +124,7 @@ export default function AdminLoginPage() {
                   id="password"
                   type="password"
                   placeholder="Enter your password"
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
-                  })}
+                  {...register("password")}
                 />
                 {errors.password && (
                   <p className="text-sm text-red-500">{errors.password.message}</p>

@@ -48,7 +48,7 @@ export function AdminUserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer" onClick={() => signOut({ callbackUrl: "/" })}>
+        <DropdownMenuItem className="cursor-pointer" onClick={() => signOut({ callbackUrl: "/auth/admin-login" })}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
@@ -56,4 +56,3 @@ export function AdminUserNav() {
     </DropdownMenu>
   )
 }
-

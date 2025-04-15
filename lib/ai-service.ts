@@ -1,23 +1,17 @@
 import OpenAI from 'openai';
-import { Plan } from '@prisma/client'; // Use correct Plan type, remove PlanVersion
-import { PlanContent, ResearchData, ImplementationPrompts } from '@/lib/types'; // Import all types
+import { Plan } from '@prisma/client'; 
+import { PlanContent, ResearchData, ImplementationPrompts } from '@/lib/types'; 
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from './prisma'; 
 
-// Log the API key presence before initializing
-console.log(`[ai-service] Attempting to initialize OpenAI. API Key Present: ${!!process.env.OPENAI_API_KEY}`);
+const DEFAULT_AI_MODEL = 'gpt-4-turbo';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Ensure OPENAI_API_KEY is set in your .env file
+  apiKey: process.env.OPENAI_API_KEY, 
 });
-
-// Define expected structure for research data (adjust as needed)
-// interface ResearchData { ... } // Already defined in types.ts
-
-// Define expected structure for plan content (adjust as needed)
-// interface PlanContent { ... } // Already defined in types.ts
 
 /**
  * Performs deep research using an AI model based on the project description.
@@ -74,10 +68,10 @@ ${JSON.stringify(exampleResearchResponse, null, 2)}
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: "json_object" }, // Use JSON mode if available
-      max_tokens: 2500, // Adjust as needed
+      response_format: { type: "json_object" }, 
+      max_tokens: 2500, 
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -91,16 +85,16 @@ ${JSON.stringify(exampleResearchResponse, null, 2)}
         researchData = JSON.parse(responseContent) as ResearchData;
     } catch (parseError) {
         console.error("--- Error Parsing AI Response (Deep Research) ---");
-        console.error("Raw Response Content:", responseContent); // Log raw content on parse failure
+        console.error("Raw Response Content:", responseContent); 
         console.error("Parse Error:", parseError);
         console.error("---------------------------------------------");
-        throw new Error("Failed to parse AI response as JSON."); // Re-throw specific error
+        throw new Error("Failed to parse AI response as JSON."); 
     }
 
     console.log("Deep research completed successfully.");
     // Add validation logic here if needed to ensure all fields are present
     return researchData;
-  } catch (error: unknown) { // Type error as unknown
+  } catch (error: unknown) { 
     console.error('--- Error During Deep Research ---');
     if (error instanceof OpenAI.APIError) {
       console.error('OpenAI API Error Status:', error.status);
@@ -116,7 +110,7 @@ ${JSON.stringify(exampleResearchResponse, null, 2)}
       console.error('Unknown Error Type:', error);
     }
     console.error('---------------------------------');
-    return null; // Return null to indicate failure
+    return null; 
   }
 }
 
@@ -150,13 +144,13 @@ export async function generateOneShotPrompt(
     return null;
   }
 
-  const prompt = instructions; // Use loaded instructions as the prompt
+  const prompt = instructions; 
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4000, // Adjust as needed
+      max_tokens: 4000, 
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -168,7 +162,7 @@ export async function generateOneShotPrompt(
     return responseContent;
   } catch (error: any) {
     console.error('--- Error Generating One-Shot Prompt ---');
-    console.error("Full OpenAI Error:", error); // Log the entire error object
+    console.error("Full OpenAI Error:", error); 
     if (error.response) {
       console.error("OpenAI API Status:", error.response.status);
       console.error("OpenAI API Headers:", JSON.stringify(error.response.headers));
@@ -177,7 +171,6 @@ export async function generateOneShotPrompt(
     return null;
   }
 }
-
 
 // --- One-Shot Prompt Functions ---
 
@@ -197,13 +190,13 @@ export async function generateOneShotPrompt(
  * @param userProfile - Information about the user's coding preferences or history (TBD).
  * @returns The generated One-Shot Prompt as a string, or null on failure.
  */
-export async function generateOneShotPrompt_new( // Renamed to avoid conflict with existing function
+export async function generateOneShotPrompt_new( 
   planContent: string | null,
   researchData: ResearchData | null,
   implementationPrompts: ImplementationPrompts | null,
   codeEditor: string,
-  databaseInfo: any, // Define a proper type later
-  userProfile: any // Define a proper type later
+  databaseInfo: any, 
+  userProfile: any 
 ): Promise<string | null> {
   console.log(`Generating One-Shot Prompt for Editor: ${codeEditor}`);
 
@@ -241,13 +234,13 @@ export async function generateOneShotPrompt_new( // Renamed to avoid conflict wi
     Generate the One-Shot Prompt now.
   `;
 
-  // 3. Call the AI model (e.g., OpenAI)
+  // 3. Call the AI model
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Or another powerful model
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: detailedPrompt }],
-      max_tokens: 4096, // Use max tokens possible, One-Shot prompts can be large
-      temperature: 0.5, // Adjust temperature for creativity vs. precision
+      max_tokens: 4096, 
+      temperature: 0.5, 
     });
 
     const oneShotPromptContent = completion.choices[0]?.message?.content;
@@ -260,7 +253,6 @@ export async function generateOneShotPrompt_new( // Renamed to avoid conflict wi
 
   } catch (error: unknown) {
     console.error('--- Error Generating One-Shot Prompt ---');
-    // Log error details (similar to other functions)
     if (error instanceof OpenAI.APIError) {
       console.error('OpenAI API Error:', error.status, error.type, error.code, error.message);
     } else if (error instanceof Error) {
@@ -315,9 +307,9 @@ export async function refineOneShotPrompt(
   // 2. Call the AI model
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Or another powerful model
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: refinementPrompt }],
-      max_tokens: 4096, // Allow ample tokens for refinement
+      max_tokens: 4096, 
       temperature: 0.5,
     });
 
@@ -331,7 +323,6 @@ export async function refineOneShotPrompt(
 
   } catch (error: unknown) {
     console.error('--- Error Refining One-Shot Prompt ---');
-     // Log error details (similar to other functions)
     if (error instanceof OpenAI.APIError) {
       console.error('OpenAI API Error:', error.status, error.type, error.code, error.message);
     } else if (error instanceof Error) {
@@ -370,14 +361,14 @@ export async function generateInitialPlan(
     throw new Error("Could not load AI instructions for initial plan.");
   }
 
-  const prompt = instructions; // Use loaded instructions as the prompt
+  const prompt = instructions; 
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: "json_object" },
-      max_tokens: 3000, // Adjust as needed
+      max_tokens: 3000, 
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -398,11 +389,11 @@ export async function generateInitialPlan(
 
     console.log("Initial plan generated successfully.");
     // Add validation for planData structure if needed
-    planData.planText = cleanMermaidCode(planData.planText); // Clean Mermaid code
+    planData.planText = cleanMermaidCode(planData.planText); 
     return planData;
   } catch (error: unknown) {
     console.error('--- Error Generating Initial Plan ---');
-     if (error instanceof OpenAI.APIError) {
+    if (error instanceof OpenAI.APIError) {
       console.error('OpenAI API Error Status:', error.status);
       console.error('OpenAI API Error Type:', error.type);
       console.error('OpenAI API Error Code:', error.code);
@@ -430,11 +421,11 @@ export async function generateInitialPlan(
  */
 export async function generateRefinedPlan(
   projectDescription: string,
-  previousPlanVersionContent: PlanContent, // Assuming PlanContent structure
+  previousPlanVersionContent: PlanContent, 
   userWrittenFeedback: string,
   selectedSuggestionIds: string[],
   researchData: ResearchData
-): Promise<string | null> { // Changed return type to string | null
+): Promise<string | null> { 
   console.log("Generating refined plan...");
 
   // Mark selected suggestions in the previous content
@@ -469,10 +460,10 @@ export async function generateRefinedPlan(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: "json_object" },
-      max_tokens: 3500, // Adjust as needed
+      max_tokens: 3500, 
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -485,9 +476,9 @@ export async function generateRefinedPlan(
     // Use the improved parser
     const refinedPlanData = parseAIResponse(responseContent);
 
-    if (!refinedPlanData) { // Check if parsing failed
+    if (!refinedPlanData) { 
       console.error("[ai-service - generateRefinedPlan] Failed to parse AI response after attempting direct and code block parsing.");
-      return null; // Explicitly return null if parsing fails
+      return null; 
     }
 
     // DEBUG: Log parsed data on success
@@ -505,9 +496,9 @@ export async function generateRefinedPlan(
     // FIX: Return the stringified version of the PARSED and potentially modified data
     return JSON.stringify(finalPlanData);
 
-  } catch (error: any) { // Catch errors from OpenAI API call itself
+  } catch (error: any) { 
     console.error("--- Error Calling OpenAI API (Refined Plan) ---");
-    console.error("Full OpenAI Error:", error); // Log the entire error object
+    console.error("Full OpenAI Error:", error); 
     if (error.response) {
       console.error("OpenAI API Status:", error.response.status);
       console.error("OpenAI API Headers:", JSON.stringify(error.response.headers));
@@ -526,8 +517,8 @@ function cleanMermaidCode(text: string): string {
   if (!text) return text;
   // Regex to find mermaid code blocks and replace <!-- and --> within them
   return text.replace(/(\\`\\`\\`mermaid\\n?)([\\s\\S]*?)(\\n?\\`\\`\\`)/g, (match, start, content, end) => {
-    const cleanedContent = content.replace(/<!--|-->/g, ''); // Remove the HTML comment tags
-    return `${start}${cleanedContent}${end}`; // Reconstruct the block
+    const cleanedContent = content.replace(/<!--|-->/g, ''); 
+    return `${start}${cleanedContent}${end}`; 
   });
 }
 
@@ -561,13 +552,13 @@ const parseAIResponse = (responseContent: string): PlanContent | null => {
         console.error("--- Error Parsing AI Response (Refined Plan - Code Block) ---");
         console.error("Extracted Content:", match[1]);
         console.error("Parse Error:", parseError);
-        return null; // Correct: return null on inner parse error
+        return null; 
       }
     } else {
       console.error("--- Error Parsing AI Response (Refined Plan - No JSON Found) ---");
       console.error("Raw Response Content:", responseContent);
       console.error("Original Parse Error:", e);
-      return null; // FIX: Explicitly return null if no JSON found
+      return null; 
     }
   }
 };
@@ -588,7 +579,7 @@ const ensureUniqueSuggestionIds = (planContent: PlanContent): PlanContent => {
       let newId: string;
       do {
         newId = uuidv4();
-      } while (existingIds.has(newId)); // Ensure the new ID is also unique
+      } while (existingIds.has(newId)); 
       existingIds.add(newId);
       return { ...suggestion, id: newId };
     } else {
@@ -646,10 +637,10 @@ ${JSON.stringify(exampleImplementationOutput, null, 2)}
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo', // Use a model supporting JSON mode
+      model: DEFAULT_AI_MODEL, 
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: "json_object" },
-      max_tokens: 2000, // Adjust as needed
+      max_tokens: 2000, 
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -673,7 +664,7 @@ ${JSON.stringify(exampleImplementationOutput, null, 2)}
     return promptsData;
   } catch (error: unknown) {
     console.error('--- Error Generating Implementation Prompts ---');
-     if (error instanceof OpenAI.APIError) {
+    if (error instanceof OpenAI.APIError) {
       console.error('OpenAI API Error Status:', error.status);
       console.error('OpenAI API Error Type:', error.type);
       console.error('OpenAI API Error Code:', error.code);

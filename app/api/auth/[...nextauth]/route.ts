@@ -8,6 +8,10 @@ import { compare } from "bcryptjs"
 import CredentialsProvider from "next-auth/providers/credentials"
 import type { NextRequest } from "next/server"
 
+// Import email sending utilities and template
+import { sendEmail } from '@/lib/email';
+import WelcomeEmail from '@/emails/welcome-email';
+
 // Ensure Prisma client is properly initialized
 const prisma = new PrismaClient()
 
@@ -27,6 +31,7 @@ declare module "next-auth" {
     user: {
       id: string
       role: "USER" | "ADMIN"
+      image?: string | null
     } & DefaultSession["user"]
   }
 
@@ -112,21 +117,63 @@ export const authOptions: AuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as "USER" | "ADMIN"
+      console.log("[NextAuth Session Callback] Token received:", JSON.stringify(token)); // Log token
+      if (token?.id && session.user) {
+        let dbUser = null;
+        try {
+          console.log(`[NextAuth Session Callback] Finding user with ID: ${token.id}`);
+          dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true, image: true },
+          });
+          console.log("[NextAuth Session Callback] DB User found:", JSON.stringify(dbUser)); // Log DB result
+        } catch (e) {
+           console.error("[NextAuth Session Callback] Error fetching user from DB:", e);
+        }
+
+        if (dbUser) {
+          session.user.id = token.id as string;
+          session.user.role = dbUser.role as "USER" | "ADMIN";
+          session.user.image = dbUser.image;
+          console.log(`[NextAuth Session Callback] Setting session role to: ${session.user.role}`); // Log role being set
+        } else {
+          console.error(`[NextAuth Session Callback] User not found in DB for token id: ${token.id}`);
+        }
+      } else {
+         console.log("[NextAuth Session Callback] Token ID or session.user missing.");
       }
-      return session
+      console.log("[NextAuth Session Callback] Returning session:", JSON.stringify(session)); // Log final session
+      return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allow relative URLs
+      // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`
-      
-      // Allow admin routes if user has admin role
-      if (url.startsWith("/admin")) return url
-      
-      // For other URLs, only allow if they start with baseUrl
-      return url.startsWith(baseUrl) ? url : baseUrl
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url
+      // Disallows callback URLs on different origins
+      return baseUrl // Default redirect to base URL
+    }
+  },
+  events: {
+    async createUser({ user }) {
+      console.log(`New user created: ${user.id}, Email: ${user.email}`);
+      if (user.email) { // Ensure email exists before sending
+        try {
+          const result = await sendEmail({
+            to: user.email,
+            subject: `Welcome to Web Planner AI!`, // Customize subject if needed
+            react: WelcomeEmail({ name: user.name, appName: "Web Planner AI" }), // Pass user name
+          });
+          if (result.success) {
+            console.log(`Welcome email sent successfully to ${user.email}`);
+          } else {
+            console.error(`Failed to send welcome email to ${user.email}: ${result.error}`);
+            // Decide if you need more robust error handling/logging here
+          }
+        } catch (error) {
+           console.error(`Error triggering welcome email for ${user.email}:`, error);
+        }
+      }
     }
   }
 }

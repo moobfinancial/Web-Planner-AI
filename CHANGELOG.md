@@ -1,7 +1,76 @@
-# Changelog
+# Changelog. --- NEVER OVERWRITE OR DELETE ANYTHING IN THIS CHANGELOG , ONLY ADD CHANGES TO THE FILE! 
 
 All notable changes to the WebPlanner project will be documented in this file.
 **** NEVER DELETE 
+## [Unreleased] - 2025-04-07
+
+### Added
+- Added documentation files (.md) from external source into the `/docs` directory to serve as a knowledge base or tutorial resource.
+- Added loading spinner to Save button in Admin User Dialog.
+- **Admin:** Added Activity Log page (`/admin/activity`) to display user actions.
+- **Admin:** Implemented role-based filtering (Admin/User/All) on the Activity Log page.
+- Prompt archiving functionality: Users can now archive and unarchive prompts instead of deleting them via the Admin UI. (2025-04-07)
+- Toggle added to Admin Prompt Management UI to show/hide archived prompts. (2025-04-07)
+- Confirmation dialog (`AlertDialog`) before archiving or unarchiving prompts in the Admin Prompt Management UI to prevent accidental clicks.
+- **Admin:** Added confirmation dialog before removing a variable in the Prompt Edit Dialog. (2025-04-07)
+- **Admin:** Created Admin Help Documentation page (`/admin/help/page.tsx`) detailing prompt and variable management. (2025-04-07)
+- **Admin:** Updated Admin Help Documentation page (`/admin/help/page.tsx`) to include information on the new Activity Log page and role-based filtering. (2025-04-07)
+- Added changelog entry for integrating AI Provider/Model selection into the Prompt Dialog.
+- Added changelog entries for Prompt Management UI enhancements (card display, loading spinner, dialog pre-population, API type fixes).
+- **Stripe Integration:** Installed Stripe SDK (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`) to begin payment gateway setup.
+- **Email Verification (Admin):**
+    - Generated unique verification tokens for new admin users.
+    - Stored tokens and expiry dates in the `User` model.
+    - Sent verification emails using Resend and a dedicated template (`admin-verification-email.tsx`).
+    - Created an API endpoint (`/api/auth/verify-admin-email`) to handle token verification, update user status, and mark email as verified.
+- **Welcome Emails:**
+    - Implemented automatic welcome email sending upon new user creation using Resend via NextAuth `createUser` event.
+    - Created a welcome email template (`welcome-email.tsx`).
+- **Email Infrastructure:**
+    - Added Resend API key and sender email to environment variables (`.env.local`).
+    - Created a reusable email sending helper function (`lib/email.ts`) using `Resend` and `react-email`.
+    - Created placeholder payment confirmation email template (`payment-confirmation-email.tsx`).
+- **Database:** Added `emailVerified`, `emailVerificationToken`, and `verificationTokenExpiry` fields to the `User` model via Prisma migration.
+- **Stripe Integration (Backend):**
+    - Installed Stripe SDK (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`).
+    - Added Stripe Publishable and Secret Keys to `.env.local` (placeholder for webhook secret).
+    - Defined Stripe products/prices in dashboard (Plan A: $10/mo `price_1RBTk2DsNaVptGN1DMyzhJCG`, Plan B: $20/mo `price_1RBTlPDsNaVptGN1IidrZuTp`).
+    - Created Stripe SDK initialization utility (`lib/stripe.ts`).
+    - Added Stripe fields (`stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `stripeSubscriptionStatus`, `stripeCurrentPeriodEnd`) to `User` model in `prisma/schema.prisma` and migrated database.
+    - Created API endpoint (`/api/stripe/checkout-session`) to create Stripe Checkout sessions.
+    - Created API endpoint (`/api/stripe/webhook`) to handle Stripe events (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`) with signature verification.
+
+### Fixed
+- **Admin Login Flow:**
+  - Corrected admin login page (`/admin/login`) layout to prevent inheritance of main admin header/sidebar by adding a dedicated minimal layout (`app/admin/login/layout.tsx`).
+  - Updated admin logout functionality (`components/admin/admin-user-nav.tsx`) to redirect to `/admin/login` instead of `/`.
+  - Refactored middleware (`middleware.ts`) to explicitly handle authorization checks and redirect unauthorized `/admin` access attempts to `/admin/login`, while other unauthorized access goes to `/login`.
+  - Fixed inconsistent NextAuth session handling by updating the session callback in `app/api/auth/[...nextauth]/route.ts` to fetch user roles directly from the database, ensuring proper admin role detection.
+- Adjusted `next-auth` configuration for compatibility. (2025-04-07)
+- Corrected Prisma schema relations and types based on error messages. (2025-04-07)
+- Resolved middleware logic to correctly handle redirects and API protection. (2025-04-07)
+- Fixed `ts-node` path resolution issues in `prisma/seed.ts` by using `process.cwd()`. (2025-04-07)
+- Temporarily commented out seeding for `refineOneShotPromptInstructions.txt` in `prisma/seed.ts` as the file is missing. (2025-04-07)
+- Refined error handling in the `lib/email.ts` helper function.
+
+### Changed
+- **Database:** Added `variables Json?` field to `Prompt` model in `prisma/schema.prisma` to store prompt variables and ran migration. (2025-04-07)
+- **API:** Updated `POST /api/admin/prompts` and `PUT /api/admin/prompts/[promptId]` routes to handle saving and updating the `variables` field for prompts. (2025-04-07)
+- **API:** Updated `GET /api/admin/prompts` and `PUT /api/admin/prompts/[promptId]` routes to include related `model` and `model.provider` data in the response. (2025-04-07)
+- **Admin:** Added "AI Provider & Model Management" section to Help Documentation (`/admin/help/page.tsx`). (2025-04-07)
+- **Admin Prompt Dialog:** Integrated AI Provider and Model selection dropdowns into the Prompt create/edit dialog (`components/admin/prompt-dialog.tsx`). Updated parent component (`components/admin/prompt-management.tsx`) to pass provider data and handle saving the selected `modelId` via API. (2025-04-07)
+- **Admin Prompt Management UI:** (2025-04-07)
+    - Added AI Provider and Model name display to prompt cards (`components/admin/prompt-management.tsx`).
+    - Added loading spinner to the save button in the prompt dialog (`components/admin/prompt-dialog.tsx`).
+    - Implemented pre-population of Provider/Model dropdowns when editing a prompt in the dialog (`components/admin/prompt-dialog.tsx`).
+    - Fixed TypeScript/Prisma type errors in backend API route (`/api/admin/prompts/[promptId]/route.ts`).
+- Updated `Build_Plan.md` to mark Email Integration tasks as complete and add Stripe Integration tasks.
+- Updated `appName` in `welcome-email.tsx` to "Aiprompti.com".
+- Updated `Build_Plan.md` to mark completed Stripe backend tasks.
+
+### Security
+- Ensured admin routes are properly protected by middleware. (2025-04-07)
+
 ## [Unreleased] - 2025-04-05
 
 ### Fixed
@@ -65,6 +134,17 @@ All notable changes to the WebPlanner project will be documented in this file.
 - **Component Fix:** Resolved HTML nesting errors (`<p>` in `<p>`, `<ul>` in `<p>`, `<div>` in `<p>`) and related accessibility warning in the feedback confirmation modal (`components/plan-details.tsx`) by using the `asChild` prop on `AlertDialogDescription` and wrapping the dynamic content in a `div`.
 - **API Fix:** Recreated missing `schema.ts` file in `app/api/plans/[id]/versions/` containing the Zod schema (`refineBodySchema`) for validating the POST request body, resolving the "Module not found" build error.
 
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Implemented frontend API integration for Prompt Management (Add, Edit, Delete, Archive).
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
 ## [Unreleased] - 2025-04-05
 
 ### Fixed
@@ -110,11 +190,6 @@ All notable changes to the WebPlanner project will be documented in this file.
   - Separating SVG content management into React state
   - Adding proper cleanup on component unmount
 
-## [Unreleased] - 2025-04-05
-
-### Fixed
-- **TypeScript Syntax Errors:** Corrected TypeScript syntax errors in `lib/ai-service.ts` caused by unescaped backticks within prompt template literals. Resolved a potential lint error (`'with' statements not allowed`) by rephrasing an instruction in the `generateRefinedPlan` prompt.
-
 ## [Unreleased] - 2025-04-03
 
 ### Added
@@ -135,57 +210,8 @@ All notable changes to the WebPlanner project will be documented in this file.
 ## [Unreleased] - YYYY-MM-DD 
 
 ### Added
-- **Interactive Mermaid Diagrams:**
-    - Created `MermaidDiagram.tsx` component using `react-zoom-pan-pinch` for interactive (zoom/pan) rendering of Mermaid syntax.
-    - Implemented graceful error handling in `MermaidDiagram.tsx` to render nothing on syntax/rendering errors, preventing user-facing technical details.
-    - Updated `PlanDetails.tsx` to conditionally render `MermaidDiagram` for sections identified as Mermaid candidates (e.g., 'Site Architecture').
-    - Added a collapsible accordion in `PlanDetails.tsx` to show raw Mermaid code/text details secondarily when a diagram is displayed.
-    - Updated AI prompts in `ai-service.ts` (`generateInitialPlan`, `generateRefinedPlan`) to explicitly request Mermaid syntax (`graph TD`) for 'Site Architecture' and handle its preservation/regeneration during refinement.
-
-### Fixed
-- Resolved `async`/`await` related TypeScript error in `MermaidDiagram.tsx` after switching to `mermaid.render`.
-- Resolved persistent JSX syntax errors in `PlanDetails.tsx` related to rendering mapped elements within a ternary operator by refactoring the component to calculate elements before the return statement.
-
-## [Unreleased] - 2025-04-01
-
-### Fixed
-- Resolved TypeScript errors related to the `ProjectStatus` enum after Prisma client regeneration.
-- Fixed dashboard build timeout by optimizing the database queries for calculating monthly statistics.
-- Added missing imports for `Card` components (`Card`, `CardContent`, `CardHeader`, etc.) in `components/plan-details.tsx` to resolve `Card is not defined` runtime error.
-- Corrected parameter destructuring in the API route `app/api/plans/[id]/versions/[versionId]/route.ts` to properly access `params.id` and `params.versionId` in the `GET` handler, resolving server-side errors.
-- Corrected parameter destructuring in the API route `app/api/plans/[id]/versions/route.ts` to properly access `params.id` in the `GET` handler, resolving server-side errors.
-- **Fix:** Updated API route `app/api/plans/[id]/versions/route.ts` to use the correct Prisma model name `Plan` instead of the old name `PlanVersion`, resolving `TypeError: Cannot read properties of undefined (reading 'findMany')`.
-- **Fix:** Corrected the `select` statement in `app/api/plans/[id]/versions/route.ts` to query for the existing `planType` field instead of the non-existent `isRefined` field, resolving `PrismaClientValidationError`.
-- **Fix:** Updated API route `app/api/plans/[id]/versions/[versionId]/route.ts` to use the correct Prisma model name `Plan` instead of `PlanVersion`, resolving `TypeError: Cannot read properties of undefined (reading 'findUnique')`.
-- **Fix:** Updated type imports and usage in `components/plan-details.tsx` from `PlanVersion` to the correct model type `Plan`.
-- **Fix:** Regenerated Prisma client to ensure type alignment with the schema after model rename (`PlanVersion` -> `Plan`).
-- **Fix:** Imported `useToast` hook in `components/plan-details.tsx` to resolve `Cannot find name 'toast'` error.
-- **Fix:** Corrected Prisma query in `/api/plans/[id]/versions/[versionId]/route.ts` to `include: { feedback: true }` instead of `suggestions: true` based on `schema.prisma`.
-- **Fix:** Modified API routes (`.../versions/route.ts` and `.../versions/[versionId]/route.ts`) to access route `params` via the `context` argument inside the handler function, resolving Next.js parameter access warnings.
-- **Fix:** Installed missing `@next-auth/prisma-adapter` dependency to resolve `Module not found` error in NextAuth configuration (`/app/api/auth/[...nextauth]/route.ts`).
-- **Fix:** Defined missing constant `SECTION_PLAN_CONTENT` (and related constants) in `components/plan-details.tsx` to resolve frontend `ReferenceError`.
-- **Fix:** Imported missing `ThumbsUp`, `ThumbsDown`, and `MessageSquarePlus` icons from `lucide-react` in `components/plan-details.tsx`.
-- **Fix:** Made `researchData` and `planContent` parsing in `components/plan-details.tsx` more robust to handle non-string or invalid JSON data.
-- **Fix:** Commented out non-functional `fetchSuggestions` call in `components/plan-details.tsx` causing 404 errors.
-- **Fix:** Correctly handled `researchData` in `components/plan-details.tsx` as a pre-parsed object (due to Prisma `Json` type) instead of attempting to `JSON.parse` it.
-- **Fix:** Ensured `planContent` parsing in `components/plan-details.tsx` correctly accesses the nested `planText` property after parsing.
-- User avatar visibility in the header should now be improved by using the actual user image or a fallback with initials.
-- Corrected import path for `auth` and `prisma` in profile image upload API route.
-- Corrected authentication method in profile image upload API route (switched from invalid `auth()` call to `getServerSession`).
-- Restored `CustomerProfile` component usage on the profile page, fixing the `CustomerProfile is not defined` error.
-
-### Changed
-- Refactored dashboard data fetching (`getDashboardData`) to use a single query for monthly stats instead of multiple `count` queries.
-- Updated `prisma/schema.prisma` to add `onDelete: Cascade` to `Activity` and `PlanShare` relations on `Project` to prevent orphaned data upon project deletion.
-- Enhanced API route (`GET /api/plans/[id]/versions/[versionId]`) to include project status and name in the response.
-- Refactored plan details page (`/dashboard/plans/[id]/page.tsx`) data fetching logic for clarity and to retrieve project status.
-- Positioned tooltip in Settings page for better readability.
-- **Profile Page Refactor:** Refactored the Profile page (`/dashboard/profile/page.tsx`) and the `CustomerProfile` component (`/components/customer/customer-profile.tsx`). The page now fetches session data and passes the user object and upload logic (`handleFileChange`, `isUploading`) as props to the `CustomerProfile` component. `CustomerProfile` was updated to receive these props and display the data, removing its internal mock state and handlers.
-- Updated profile image upload API route (`/api/user/profile/image/route.ts`) to use `getServerSession` with `authOptions` for correct server-side session retrieval.
-
-### Added
 - Initial project structure setup.
-- Basic authentication with NextAuth.js.
+- Basic authentication with Next.js, TypeScript, Tailwind CSS, Shadcn UI, Prisma, and NextAuth.
 - Dashboard layout and components.
 - Plan creation form.
 - Basic plan details display.
@@ -222,7 +248,6 @@ All notable changes to the WebPlanner project will be documented in this file.
 - Added logging in `app/api/plans/[id]/versions/route.ts` to inspect the `prisma` object state before database query to debug `TypeError: Cannot read properties of undefined (reading 'findMany')`.
 
 ## 2025-04-06
-
 ### Added
 - Restored checkbox task tracking functionality in the Plan Prompts component
 - Added feedback and refinement functionality for the One-Shot Prompt
@@ -263,12 +288,168 @@ All notable changes to the WebPlanner project will be documented in this file.
 - **Fix:** Corrected a persistent JSX build error (`Unexpected token div`) in `components/plan-prompts.tsx` by removing a misplaced `export default PlanPrompts;` statement located inside the `fetchCategorizedPrompts` function and ensuring the export was correctly placed at the end of the file.
 - **Refactor (Previous Attempt):** Refactored `components/plan-prompts.tsx` to use a single main return with conditional rendering and removed a semicolon after an internal function definition (`renderPromptsForCategory`) in earlier attempts to fix the build error.
 
-## v0.5.1 (2025-04-06)
+## [Unreleased] - YYYY-MM-DD
 
-*   **Feature:** Added a dedicated "One-shot" tab to the "Implement Prompts" section in the Plan Details page. This tab displays the specific `oneShotPrompt` associated with the selected plan version, fetched alongside the categorized prompts.
-*   **Fix:** Corrected API route (`/api/plans/[id]/prompts`) to accept a `versionId` query parameter, allowing fetching/generation of prompts for a specific plan version instead of always defaulting to the latest.
-*   **Fix:** Updated frontend fetch call in `PlanPrompts` component to use the correct API route structure (Project ID in path, Version ID as query param).
-*   **Refactor:** Continued using `React.createElement` in `plan-prompts.tsx` to avoid persistent JSX build issues.
-*   **Fix:** Addressed NextAuth `404` errors on `/api/auth/session` by configuring `middleware.ts` to ignore `/api/auth/**` routes.
+### Added
+- Implemented AI Provider and Model management in Admin settings.
+- Functionality to add, edit, and view AI Providers.
+- Functionality to add, edit, and view AI Models associated with providers.
+- Backend API routes (`/api/admin/ai-providers` and `/api/admin/ai-providers/[providerId]/models`) for CRUD operations.
+- Frontend UI components (`AIProviderManagement`, `AIProviderDialog`, `AIModelDialog`) using Shadcn UI.
+- Implemented DELETE functionality for AI Providers (with cascade delete for associated models) and individual AI Models.
+- Added confirmation dialogs (`AlertDialog`) for delete actions to prevent accidental data loss.
+- Integrated `react-hot-toast` for user feedback on add/edit/delete operations.
+
+### Changed
+- Refactored dialog logic in `AIProviderManagement` to ensure dialog components are always mounted.
+- Updated `AIModelDialog` to align with the backend schema for model properties (cost, context window, etc.).
+- Ensured API routes perform necessary authorization checks (Admin role).
+- Adjusted UI layout in `AIProviderManagement` for better display of providers and models.
+
+### Fixed
+- Corrected prop usage for Dialog components (`open` instead of `isOpen`).
+- Handled potential null values for optional provider fields (`apiKeyEnvVarName`, `baseUrl`) before sending to API.
+- Ensured model costs/context window are correctly parsed as numbers before API calls.
+- Added missing `useToast` import.
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Added changelog entry for AI Provider/Model delete functionality.
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Added changelog entry for prompt editing fix and API route query simplification.
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [0.1.4] - 2025-04-07
+### Fixed
+- Corrected prop passing mismatch between `PromptManagement` and `PromptDialog` components to enable prompt editing functionality.
+- Simplified Prisma query in `GET /api/admin/prompts` API route to avoid internal server errors potentially caused by nested includes on null relations after seeding.
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+## [0.1.5] - 2025-04-07
+### Added
+- Confirmation dialog (`AlertDialog`) before archiving or unarchiving prompts in the Admin Prompt Management UI to prevent accidental clicks.
+
+### Changed
+- Updated `handleToggleArchive` in `PromptManagement` component to trigger confirmation dialog instead of immediate API call.
+- Created `confirmToggleArchive` function to handle API call after confirmation.
+
+### Fixed
+- N/A
+
+## [0.1.6] - 2025-04-07
+### Added
+- Created new API route `PATCH /api/admin/prompts/[promptId]/status` to handle updating the status (ACTIVE/ARCHIVED) of a specific prompt.
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [0.1.7] - 2025-04-07
+### Fixed
+- Removed duplicate import statement for `lucide-react` icons in `components/admin/prompt-management.tsx` to resolve compilation error.
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+## v0.7.0 (Pending) - Admin Enhancements & AI Configuration
+
+- **Feature:** Added Activity Log page in Admin panel (`/admin/activity`).
+- **Feature:** Implemented role-based filtering (Admin/User/All) in Activity Log.
+- **Feature:** Added System Settings management under `/admin/settings`.
+- **Feature:** Integrated AI Model selection into System Settings.
+- **Update:** `ai-service.ts` now dynamically uses the AI model configured in System Settings.
+
+### v0.6.0 (2025-04-05) - One-Shot Prompt & Fixes
+{{ ... }}
+
+## vNEXT (YYYY-MM-DD)
+
+- **Fix (Admin Login Flow - 2025-04-07):** Resolved persistent admin login redirection issue. Implemented the fix from a previous version (`webplanner-5 copy 4`) by moving the admin login page (`page.tsx`) and its dedicated layout (`layout.tsx`) from `/app/admin/login/` to a new, separate directory `/app/auth/admin-login/`. Updated `middleware.ts`, `admin-user-nav.tsx` (logout link), and simplified the NextAuth API route handler (`app/api/auth/[...nextauth]/route.ts`) to correctly import configurations from `lib/auth.ts`. This prevents interference from the main admin layout and resolves incorrect redirects.
 
 {{ ... }}
+
+## [Unreleased] - 2025-04-08
+
+### Added
+- Created subscription success page (`/subscription/success`).
+- Created subscription cancellation page (`/subscription/cancel`).
+- Integrated payment confirmation email sending via Stripe webhook (`checkout.session.completed` event).
+- Updated payment confirmation email template (`emails/payment-confirmation-email.tsx`) to accept and display plan name.
+
+### Changed
+- Modified Stripe webhook handler (`/api/stripe/webhook`) to call `sendEmail` helper.
+
+### Fixed
+- Resolved TypeScript lint error where `stripe` client was potentially null in webhook handler.
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Added changelog entry for Header/Footer refactor and application to subscription page.
+- Created reusable `Header` and `Footer` components in `components/layout`.
+- Applied standard `Header` and `Footer` to the `/subscription` page.
+- Updated `/` (Homepage) to use the reusable `Header` and `Footer` components.
+
+### Changed
+- Refactored header/footer structure for better maintainability and consistency across pages.
+
+### Fixed
+- N/A
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- Added changelog entry for the new Contact Us page.
+- Created `/contact` page route (`app/contact/page.tsx`).
+- Created `ContactForm` component (`components/contact/contact-form.tsx`) based on v0.dev design.
+- Integrated `ContactForm` into the `/contact` page.
+- Added "Contact" link to the site `Footer`.
+- Created reusable `Header` and `Footer` components in `components/layout`.
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [Unreleased] - YYYY-MM-DD
+
+### Added
+- **Contact Page:** Restored design to match reference project:
+    - Copied `ContactFAQ`, `ContactMap`, `ContactOptions` components.
+    - Copied `circuit-bg`, `glow-text`, `futuristic-card`, `glow-border` styles and `circuit-flow` animation from reference `globals.css`.
+    - Updated `tailwind.config.ts` to include `circuit-flow` animation.
+    - Updated `app/contact/page.tsx` structure, components, header, footer, and styling to align with reference.
+    - Synchronized CSS variables and base/component layer styles in `app/globals.css` with reference.
+    - Investigated lingering visual discrepancies on Contact page, identified potential font rendering differences despite identical configuration (`Inter` font via `next/font`, `layout.tsx`, `tailwind.config.ts`, `globals.css`). Next step is browser dev tool inspection.
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
