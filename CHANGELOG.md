@@ -2,6 +2,29 @@
 
 All notable changes to the WebPlanner project will be documented in this file.
 **** NEVER DELETE 
+
+## [Unreleased] - 2025-04-15
+
+### Added
+- N/A
+
+### Changed
+- Merged feature/apr8-updates branch with master branch, resolving conflicts in:
+  - CHANGELOG.md
+  - lib/ai-service.ts
+  - middleware.ts
+  - prisma/schema.prisma
+  - prisma/seed.ts
+  - package.json
+  - package-lock.json
+  - public/Build_Plan.md
+
+### Fixed
+- Resolved merge conflicts preserving latest functionality from both branches
+- Maintained detailed schema comments in prisma/schema.prisma
+- Fixed import statements in prisma/seed.ts
+- Consolidated dependency versions in package.json
+
 ## [Unreleased] - 2025-04-07
 
 ### Added
