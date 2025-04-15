@@ -19,8 +19,11 @@ async function main() {
     },
   });
   if (existingAdminUser) {
+    // Re-hash the password
     const newHashedPassword = await hash('admin123', 10);
-    await prisma.user.update({
+
+    // Update the existing admin user's password and role to ADMIN
+    const updatedAdminUser = await prisma.user.update({
       where: {
         email: 'admin@webplanner.com',
       },

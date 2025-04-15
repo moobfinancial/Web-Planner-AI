@@ -190,11 +190,6 @@ All notable changes to the WebPlanner project will be documented in this file.
   - Separating SVG content management into React state
   - Adding proper cleanup on component unmount
 
-## [Unreleased] - 2025-04-05
-
-### Fixed
-- **TypeScript Syntax Errors:** Corrected TypeScript syntax errors in `lib/ai-service.ts` caused by unescaped backticks within prompt template literals. Resolved a potential lint error (`'with' statements not allowed`) by rephrasing an instruction in the `generateRefinedPlan` prompt.
-
 ## [Unreleased] - 2025-04-03
 
 ### Added
@@ -253,7 +248,6 @@ All notable changes to the WebPlanner project will be documented in this file.
 - Added logging in `app/api/plans/[id]/versions/route.ts` to inspect the `prisma` object state before database query to debug `TypeError: Cannot read properties of undefined (reading 'findMany')`.
 
 ## 2025-04-06
-
 ### Added
 - Restored checkbox task tracking functionality in the Plan Prompts component
 - Added feedback and refinement functionality for the One-Shot Prompt

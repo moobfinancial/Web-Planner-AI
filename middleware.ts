@@ -72,15 +72,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth API routes)
+     * - api/public (Example: for public API endpoints)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Also potentially exclude api/auth if getToken handles it reliably,
-     * but keeping it matched ensures the middleware function logic is applied.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-    '/login',
-    '/register',
-    '/auth/admin-login',
+    '/((?!api/auth|api/public|_next/static|_next/image|favicon.ico).*)',
   ],
 };
