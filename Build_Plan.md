@@ -10,8 +10,9 @@ WebPlanner is a Next.js application with an integrated admin portal for managing
 - **UI Components**: shadcn/ui + Radix UI
 - **Authentication**: NextAuth.js
 - **Database**: PostgreSQL (with Prisma ORM)
-- **Email**: Nodemailer
+- **Email**: Nodemailer + Resend
 - **State Management**: React Hooks + Context
+- **Payment Processing**: Stripe
 
 ## Build Steps
 
@@ -26,6 +27,11 @@ SMTP_PORT="587"
 SMTP_USER="..."
 SMTP_PASSWORD="..."
 ADMIN_EMAIL="admin@example.com"
+RESEND_API_KEY="..."
+RESEND_FROM_EMAIL="..."
+STRIPE_SECRET_KEY="..."
+STRIPE_PUBLISHABLE_KEY="..."
+STRIPE_WEBHOOK_SECRET="..."
 ```
 
 ### 2. Database Setup
@@ -47,6 +53,7 @@ ADMIN_EMAIL="admin@example.com"
 2. [x] Set up email authentication
 3. [x] Implement admin role middleware
 4. [x] Create protected API routes
+5. [x] Implement email verification for admin users
 
 ### 4. Core Features Implementation
 
@@ -60,9 +67,9 @@ ADMIN_EMAIL="admin@example.com"
 - [x] Plan creation
 - [x] Plan editing
 - [x] Version control
-- [ ] Export functionality
-- [x] AI-powered suggestions ( Done )
-- [x] Plan Iteration via Feedback (Feedback UI & API Call Done)
+- [x] Export functionality (PDF export with preview modal)
+- [x] AI-powered suggestions
+- [x] Plan Iteration via Feedback (Feedback UI & API Call)
 - [x] **One-Shot Prompt & Build Plan Tracking** (Generation, Refinement, UI Tab, Activity Logging, Checkbox Task Tracking + API Integration implemented; Sharing pending)
 - [x] Interactive mind maps and flowcharts (Mermaid rendering implemented for candidate sections like Site Architecture, User Flow, DB Schema; AI prompts updated to request specific diagram types; Needs styling refinement)
 
@@ -91,6 +98,67 @@ ADMIN_EMAIL="admin@example.com"
         - [ ] Add server-side logic to: verify the provided current password against the stored hash, validate the new password complexity, hash the new password, and update the user record in the database.
         - [ ] Provide user feedback on success or failure (e.g., incorrect current password, password mismatch, success message).
     - [ ] Allow users to delete their account.
+
+### 5. Admin Portal Features
+
+#### Admin Authentication
+- [x] Admin login flow
+- [x] Role-based permissions
+- [x] Admin user management
+- [x] Admin layout and navigation
+
+#### Admin Dashboard
+- [x] Overview statistics
+- [x] User growth charts
+- [x] Recent activities
+- [x] System health indicators
+
+#### User Management
+- [x] List all users
+- [x] Edit user details
+- [x] Change user roles
+- [x] Disable/enable users
+- [x] View user activities
+
+#### Content Management
+- [x] Prompt management
+- [x] Prompt archiving functionality
+- [x] Prompt variables management
+- [x] AI Provider management
+- [x] AI Model management
+
+#### System Settings
+- [x] Global configurations
+- [x] Email template settings
+- [x] Feature toggles
+- [x] AI model settings
+
+#### Activity Logging
+- [x] Activity Log page implementation
+- [x] Role-based filtering
+- [x] Activity type filtering
+- [x] Pagination and sorting
+
+### 6. Email Integration
+- [x] Set up Resend API integration
+- [x] Create reusable email sending helper function
+- [x] Implement welcome emails for new users
+- [x] Implement admin verification emails
+- [x] Create payment confirmation email template
+- [x] Send verification emails to new admin users
+- [x] Track email verification status
+
+### 7. Stripe Integration
+- [x] Install Stripe dependencies
+- [x] Add Stripe API keys to environment
+- [x] Configure Stripe products and prices
+- [x] Create checkout session API endpoint
+- [x] Create webhook handler for Stripe events
+- [x] Update User model with Stripe fields
+- [x] Implement subscription management UI
+- [x] Create success and cancel pages
+- [x] Send payment confirmation emails
+- [x] Implement subscription features page
 
 ### 6. Version History Page
 - [ ] **Data Fetching:**
@@ -329,46 +397,11 @@ webplanner_withadmin/
 ### Phase 3: Admin Portal Implementation
 
 #### Prompt Management
-- **Backend (`api/admin/prompt-management.ts`)**:
-    - [X] Implement API routes for CRUD operations.
-    - [X] Validate user input using Zod.
-    - [X] Handle potential errors (e.g., duplicate names, database errors) and provide feedback.
-    - [X] Ensure only ADMIN users can access these routes.
-- **Frontend (`components/admin/prompt-management.tsx`)**:
-    - [X] Create state variables for prompts, AI models, loading, error, dialogs, and form data.
-    - [X] Implement `fetchData` to get prompts and AI models from the API.
-    - [X] Implement UI elements (Table, Dialog, Forms, Buttons) using `shadcn/ui`.
-    - [X] Connect UI actions (Add, Edit, Delete, Archive, Duplicate) to API handlers.
-    - [X] Implement filtering and searching functionality.
-    - [X] Add confirmation dialogs for delete/archive actions.
-    - [X] Testing & Refinement: Thoroughly test all CRUD operations and refine UI/UX.
-- [X] **Prompt Archiving:** Implement functionality to archive prompts instead of hard deleting.
-- [ ] **Prompt Version History & Revert:** Add a system to track changes to prompts and allow reverting to previous versions.
-- [ ] **Documentation**: Update README or relevant docs if necessary.
-
-### Phase 4: Monetization & Subscription
-
-#### Stripe Integration
-- [X] Install Stripe dependencies (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`).
-- [X] Add Stripe API keys (Publishable and Secret) to `.env.local`.
-- [X] Configure Stripe products and prices in Stripe Dashboard (Plan A: $10, Plan B: $20).
-- [X] Create API endpoint for creating Stripe Checkout sessions (`/api/stripe/checkout-session`).
-- [X] Create API endpoint (webhook) for handling Stripe events (`/api/stripe/webhook`) (Needs secret configuration and testing).
-- [X] Update Prisma schema (`User` model) to store Stripe customer ID and subscription status (`stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `stripeSubscriptionStatus`, `stripeCurrentPeriodEnd`).
-- [X] Run `prisma migrate dev` for subscription schema changes.
-- [ ] Add `STRIPE_WEBHOOK_SECRET` to `.env.local` after configuring endpoint in Stripe Dashboard.
-- [X] Implement frontend logic to initiate Stripe Checkout.
-- [X] Implement frontend logic to display subscription status/management options.
-- [X] Secure webhook endpoint (verify signature - implemented, needs secret).
-- [X] Update Payment Confirmation email template (`payment-confirmation-email.tsx`).
-- [X] Send payment confirmation email upon successful payment webhook event.
-- [X] Create success page (`/subscription/success`).
-- [X] Create cancellation page (`/subscription/cancel`).
-- [X] Add Header and Footer to `/subscription` page.
-- [X] Ensure consistent background animation (if applicable).
-
-### Phase 5: Plan Execution & Monitoring (Future)
-{{ ... }}
+- [x] Verify/Implement AI Model API Routes (Nested under Provider routes - confirmed existing)
+- [x] Connect UI to APIs (Confirmed existing UI connects)
+- [x] Update Prompt Dialog (Add Provider/Model dropdowns)
+- [x] Update Prompt Save Logic (Frontend - Pass `modelId` from dialog)
+- [x] Verify/Update Prompt Save Logic (Backend - Confirm API routes handle `modelId`)
 
 ### Task: AI Provider UI and Prompt Dialog Integration
 - [x] Verify/Implement AI Model API Routes (Nested under Provider routes - confirmed existing)
